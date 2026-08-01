@@ -12,21 +12,24 @@ The most important (and most counterintuitive) idea in orbital mechanics:
 
 ## How to use it
 
-- **Lessons tab** — eight short guided lessons, in order:
+- **Lessons tab** — nine short guided lessons, in order:
   1. *What is an orbit?* — orbiting is falling sideways forever
   2. *Raise the far side* — a prograde burn raises the opposite side
   3. *Where you burn matters* — same burn, different spot, different orbit
   4. *The two-burn transfer* — the Hohmann transfer: two burns to move both sides
   5. *Coming home* — slow down here, re-enter over there
   6. *Steering the burn* — sideways thrust rotates the orbit; prograde grows it
-  7. *Lead the Moon* — aim where the Moon WILL be (transfer windows)
-  8. *Lunar orbit insertion* — arrive on a flyby, brake at closest approach, get captured
+  7. *Breaking free* — escape velocity: the √2 speed where the orbit tears open
+  8. *Lead the Moon* — aim where the Moon WILL be (transfer windows)
+  9. *Lunar orbit insertion* — arrive on a flyby, brake at closest approach, get captured
 - **Sandbox tab** — free play with the Moon, presets, no goals, reset any time.
 - **Live burns** — hold ▲ Prograde / ▼ Retrograde (or the ↑/↓ arrow keys) and watch
   the orbit deform in real time; the *Steer* slider tilts the engine up to ±90°.
-- **Flight plan** — chain multiple maneuver points (each with its own burn strength
-  AND direction), preview the whole mission as dashed orbits, then execute it —
-  like real mission control.
+- **Flight plan** — chain up to **5 maneuver points**, each its own block with a burn
+  strength AND direction, individually editable/removable; the dashed previews and
+  the plan summary always show the combined result of every scheduled burn. A Range
+  selector (±100 / ±500 / ±3500 m/s) switches the slider between trim burns and big
+  departures, and a number box takes exact values.
 - **The Moon** — orbits Earth with its real gravity; cross the dashed *sphere of
   influence* and the sim hands you over to Moon-centered orbit (patched conics, the
   same model mission planners teach). Toggle between the real 384,400 km distance

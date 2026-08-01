@@ -229,7 +229,17 @@
       <div id="planList"></div>
       <div id="nodeControls" style="display:none; margin-top:10px">
         <div class="slider-label"><span>Burn strength</span><b id="nodeDvVal">0 m/s</b></div>
-        <input type="range" id="nodeDv" min="-500" max="500" step="1" value="0">
+        <div class="radioRow" style="margin:4px 0 2px;font-size:12px">
+          <span class="tip" data-tip="Slider sensitivity. Fine for trim burns (circularizing, deorbit), Big for departures (escape, Moon transfer). The number box always accepts any exact value.">Range</span>
+          <label><input type="radio" name="dvRange" value="100"> ±100</label>
+          <label><input type="radio" name="dvRange" value="500" checked> ±500</label>
+          <label><input type="radio" name="dvRange" value="3500"> ±3500</label>
+        </div>
+        <div class="row">
+          <input type="range" id="nodeDv" min="-500" max="500" step="1" value="0" style="flex:1">
+          <input type="number" id="nodeDvNum" value="0" step="1" min="-3500" max="3500" title="Type an exact burn size in m/s"
+                 style="flex:0 0 86px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 6px;font-size:12.5px">
+        </div>
         <div class="slider-label"><span>◀ slow down</span><span>speed up ▶</span></div>
         <div class="slider-label" style="margin-top:6px"><span><span class="tip" data-tip="Direction of this burn relative to your motion at that point. 0° = prograde (straight ahead), ±180° = retrograde (straight back), ±90° = sideways.">Direction</span></span><b id="nodeAngVal">0°</b></div>
         <input type="range" id="nodeAng" min="-180" max="180" step="5" value="0">
@@ -249,7 +259,7 @@
         <label><input type="radio" name="moonScale" value="real"> Real</label>
       </div>
       <label class="radioRow" id="moonOnRow" style="margin-top:6px;display:none"><input type="checkbox" id="moonOn"> Moon present</label>
-      <div class="hint" style="font-size:11.5px;color:var(--dim);margin-top:6px">Changing these resets the current orbit.</div>
+      <div class="hint" style="font-size:11.5px;color:var(--dim);margin-top:6px">Changes apply live — your orbit is not reset.</div>
     </div>
 
     <div class="card" id="sandboxBox" style="display:none">
@@ -684,13 +694,41 @@ const LESSONS = [
       precious, and pushing along your velocity buys the most orbit per drop.`,
   },
   {
-    title: '7 · Lead the Moon',
+    title: '7 · Breaking free',
+    goal: `At every altitude there's a magic speed — <em>escape velocity</em> — beyond
+      which gravity can never pull you back.<br><br>
+      Here at 300 km you circle at <b>7.7 km/s</b>. Escape needs <b>~10.9 km/s</b> —
+      about 41% more. (That ratio, √2, is the same at every altitude, around every
+      world.)<br><br>
+      Hold <em>▲ Prograde</em> — it's a LONG burn — or plan one big
+      <b>+3,300 m/s</b> burn (set the Range to ±3500). Watch the
+      <span style="color:var(--apo)">high point</span> climb, then run away, then read
+      <b>∞</b>: your orbit has torn open.<br><br>
+      <b>Goal:</b> break free of Earth onto an escape path.`,
+    init: () => setOrbitCircular(300),
+    burnsAllowed: true, plannedAllowed: true,
+    check: () => { const el = currentElements(); return app.frame === 'earth' && (el.e >= 1 || el.a <= 0); },
+    successText: `You crossed <b>escape velocity</b> — the speed where your energy of
+      motion beats gravity's grip for good. Below it, every path bends into a closed
+      loop; above it, the loop tears open and there is no "far side" anymore — the
+      high point reads <b>∞</b>.<br><br>
+      Two things to keep: ① escape speed is always <b>√2 ≈ 1.41×</b> your circular
+      speed — true in low orbit, high orbit, or at the Moon (where it's only
+      ~2.4 km/s, which is why leaving the Moon is cheap). ② You're not doomed yet:
+      burn <em>retrograde</em> before you're far away and gravity will still take you
+      back.<br><br>
+      Next lesson puts this to work: reaching the Moon takes <i>almost</i> escape
+      speed — that's why it's the priciest trip in the neighborhood.`,
+  },
+  {
+    title: '8 · Lead the Moon',
     goal: `Time to leave home. The <b style="color:var(--moon)">Moon</b> is that grey
       disc — and it's <em>moving</em>. Aim where it is now and you'll arrive at empty
       space. You must aim where it <em>will</em> be — like throwing to a running
       catcher.<br><br>
-      Add a prograde maneuver point and drag its burn up (~<b>2,900–3,100 m/s</b>)
-      until your preview orbit stretches out to Moon altitude. A
+      Add a prograde maneuver point, set its Range to ±3500, and drag or type a burn
+      of ~<b>2,900–3,100 m/s</b> until your preview orbit stretches out to Moon
+      altitude. A
       <b style="color:var(--moon)">ghost Moon</b> appears where the Moon will be when
       you arrive — adjust your burn point around the orbit until the ghost sits on
       your arrival point, then execute and coast.<br><br>
@@ -706,16 +744,29 @@ const LESSONS = [
       circle — the <b>sphere of influence</b> — the Moon's gravity owns you now.`,
   },
   {
-    title: '8 · Lunar orbit insertion',
+    title: '9 · Lunar orbit insertion',
+    insertion: true,
     goal: `You're arriving at the Moon on a <em>flyby</em> path. Do nothing and its
       gravity will sling you around and throw you back to deep space — you're going
       too fast to stay.<br><br>
-      <b>Arriving is braking.</b> Wait until you're near your closest approach to the
-      Moon (the <span style="color:var(--peri)">low point</span> marker), then hold
-      <em>▼ Retrograde</em> until your orbit closes into a loop around the Moon.<br><br>
+      <b>Arriving is braking.</b> Mission control has pre-loaded a suggested flight
+      plan: one <em>retrograde</em> burn at your closest approach, sized to close your
+      orbit into a loop. Look at the dashed preview, then <em>Execute plan</em> — or
+      first play with the burn's size, direction, or position and watch the predicted
+      orbit react. (You can also fly it by hand with <em>▼ Retrograde</em>.)<br><br>
       <b>Goal:</b> get <em>captured</em> — a closed orbit entirely inside the Moon's
       sphere of influence.`,
-    init: () => { app.moonTheta0 = 0.7; setOrbitLunarApproach(); app.warpIdx = 2; },
+    init: () => {
+      app.moonTheta0 = 0.7; setOrbitLunarApproach(); app.warpIdx = 2;
+      // Mission control's suggested plan: retrograde at perilune, sized to capture
+      // into an orbit with apolune at half the SOI (works at either Moon scale).
+      const rp = R_MOON + 150, vinf = 0.8;
+      const vHyp = Math.sqrt(vinf * vinf + 2 * MU_MOON / rp);
+      const ra = soiRadius() * 0.5, aT = (rp + ra) / 2;
+      const vTgt = Math.sqrt(MU_MOON * (2 / rp - 1 / aT));
+      app.plan = [{ nu: 0, dv: Math.round((vTgt - vHyp) * 1000), angDeg: 0 }];
+      app.planSel = 0; syncNodeSliders(); updatePlanUI();
+    },
     burnsAllowed: true, plannedAllowed: true,
     moon: true,
     check: () => {
@@ -1107,27 +1158,32 @@ function updatePlanUI() {
     list.appendChild(row);
   });
 
+  const full = app.plan.length >= PLAN_MAX;
+  document.getElementById('btnSnapPeri').disabled = full;
+  document.getElementById('btnSnapApo').disabled = full;
+  btnPlan.disabled = full && !app.placingNode;
   if (app.placingNode) {
     hint.textContent = 'Now click a spot on the orbit line (the newest dashed one if you have a plan)…';
     btnPlan.textContent = '✕ Never mind';
     nc.style.display = 'none';
   } else if (app.plan.length) {
     hint.textContent = 'Select a burn to edit it. Add more, then execute the whole plan.';
-    btnPlan.textContent = '＋ Add another burn';
+    btnPlan.textContent = full ? `Plan full (${PLAN_MAX} burns)` : '＋ Add another burn';
     nc.style.display = 'block';
     const node = app.plan[app.planSel];
     if (node) {
       document.getElementById('nodeDvVal').textContent = `${node.dv > 0 ? '+' : ''}${node.dv} m/s`;
       document.getElementById('nodeAngVal').textContent = `${node.angDeg}°`;
+      document.getElementById('nodeDvNum').value = node.dv;
     }
     const chain = planChain();
     const fin = chain.orbits[chain.orbits.length - 1];
+    const total = app.plan.reduce((s, n) => s + Math.abs(n.dv), 0);
+    prev.style.display = 'block';
     if (fin.e >= 1 || fin.a <= 0) {
-      prev.style.display = 'block';
-      prev.textContent = 'Predicted: escape trajectory! (you would leave orbit)';
+      prev.textContent = `Plan (${app.plan.length}/${PLAN_MAX}) · total ${total} m/s → escape trajectory! (you would leave orbit)`;
     } else {
-      prev.style.display = 'block';
-      prev.textContent = `Plan result → high: ${fmtKm(fin.a * (1 + fin.e) - primR())}, low: ${fmtKm(fin.a * (1 - fin.e) - primR())}`;
+      prev.textContent = `Plan (${app.plan.length}/${PLAN_MAX}) · total ${total} m/s → high: ${fmtKm(fin.a * (1 + fin.e) - primR())}, low: ${fmtKm(fin.a * (1 - fin.e) - primR())}`;
     }
   } else {
     hint.textContent = 'Click the button, then click a spot on your orbit.';
@@ -1137,14 +1193,31 @@ function updatePlanUI() {
   }
 }
 
+const DV_RANGES = [100, 500, 3500];
+function setDvRange(range, keepValue) {
+  const sl = document.getElementById('nodeDv');
+  sl.min = -range; sl.max = range;
+  sl.step = range > 1000 ? 10 : 1;
+  document.querySelectorAll('input[name=dvRange]').forEach(r => { r.checked = +r.value === range; });
+  if (keepValue != null) sl.value = Math.max(-range, Math.min(range, keepValue));
+}
+function bestDvRange(dv) {
+  return DV_RANGES.find(r => Math.abs(dv) <= r) || DV_RANGES[DV_RANGES.length - 1];
+}
 function syncNodeSliders() {
   const node = app.plan[app.planSel];
   if (!node) return;
-  document.getElementById('nodeDv').value = node.dv;
+  setDvRange(bestDvRange(node.dv), node.dv);
+  document.getElementById('nodeDvNum').value = node.dv;
   document.getElementById('nodeAng').value = node.angDeg;
 }
 
+const PLAN_MAX = 5;
 function addPlanNode(nu) {
+  if (app.plan.length >= PLAN_MAX) {
+    flashBanner(`Flight plan is full — ${PLAN_MAX} burns max. Remove one to add another.`, 3);
+    return;
+  }
   app.plan.push({ nu, dv: 0, angDeg: 0 });
   app.planSel = app.plan.length - 1;
   syncNodeSliders();
@@ -1427,8 +1500,8 @@ function checkLesson() {
   } else if (lesson.check && lesson.check()) {
     completeLesson();
   }
-  // lesson 8 failure path: slung back out of the SOI
-  if (app.mode === 'lessons' && app.lessonIdx === 7 && !app.lessonDone && app.frame === 'earth' && app.simTime > 60) {
+  // insertion-lesson failure path: slung back out of the SOI
+  if (lesson && lesson.insertion && !app.lessonDone && app.frame === 'earth' && app.simTime > 60) {
     app.gameOver = true;
     showOverlay('🌀 The Moon flung you back!',
       `<p>You flew past without braking enough, so the Moon's gravity slingshotted you
@@ -1623,6 +1696,28 @@ document.getElementById('nodeDv').addEventListener('input', (e) => {
   const node = app.plan[app.planSel];
   if (node) { node.dv = +e.target.value; updatePlanUI(); }
 });
+document.getElementById('nodeDvNum').addEventListener('input', (e) => {
+  const node = app.plan[app.planSel];
+  if (!node) return;
+  let v = Math.round(+e.target.value || 0);
+  v = Math.max(-3500, Math.min(3500, v));
+  node.dv = v;
+  setDvRange(bestDvRange(v), v);
+  updatePlanUI();
+});
+document.querySelectorAll('input[name=dvRange]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    const range = +e.target.value;
+    const node = app.plan[app.planSel];
+    const cur = node ? node.dv : 0;
+    setDvRange(range, cur);
+    if (node && Math.abs(cur) > range) {
+      node.dv = Math.max(-range, Math.min(range, cur));
+      document.getElementById('nodeDvNum').value = node.dv;
+      updatePlanUI();
+    }
+  });
+});
 document.getElementById('nodeAng').addEventListener('input', (e) => {
   const node = app.plan[app.planSel];
   if (node) { node.angDeg = +e.target.value; updatePlanUI(); }
@@ -1664,11 +1759,24 @@ document.getElementById('presetHigh').addEventListener('click', () => { setOrbit
 
 document.querySelectorAll('input[name=moonScale]').forEach(radio => {
   radio.addEventListener('change', (e) => {
+    // Live switch — the Moon jumps to its new distance; your ship is untouched.
+    // (If you're orbiting the Moon, you ride along with it; if its sphere of
+    // influence shrinks past you, the normal handoff gives you back to Earth.)
     app.moonScale = e.target.value;
-    restartCurrent();
+    flashBanner(e.target.value === 'real'
+      ? '🌕 Real Moon: 384,400 km away. Zoom out — space is big!'
+      : '🌕 Classroom Moon: 100,000 km, so everything fits on one screen.', 4);
   });
 });
-document.getElementById('moonOn').addEventListener('change', () => restartCurrent());
+document.getElementById('moonOn').addEventListener('change', (e) => {
+  // Live toggle, no reset. If the ship is orbiting the Moon when it's switched
+  // off, hand it back to Earth's gravity first (state converts, nothing resets).
+  if (!e.target.checked && app.frame === 'moon') {
+    switchFrame('earth', "Moon removed — you're back on Earth-centered flight.");
+  }
+  app.moonEnabled = e.target.checked;
+  if (e.target.checked) flashBanner('🌕 The Moon is here.', 3);
+});
 
 function setMode(mode) {
   app.mode = mode;
