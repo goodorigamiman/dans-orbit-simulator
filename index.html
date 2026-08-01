@@ -1782,15 +1782,19 @@ function setMode(mode) {
   app.mode = mode;
   document.getElementById('tabLessons').classList.toggle('active', mode === 'lessons');
   document.getElementById('tabSandbox').classList.toggle('active', mode === 'sandbox');
-  app.gameOver = false; app.thrustSign = 0;
+  app.thrustSign = 0;
   hideOverlay();
-  if (mode === 'lessons') loadLesson(app.lessonIdx);
-  else {
-    document.getElementById('moonOn').checked = true;
-    app.moonEnabled = true;
-    setOrbitCircular(500);
-    app.scale = null; app.camCenter = [0, 0];
-    applyControlPolicy();
+  document.getElementById('moonOn').checked = app.moonEnabled;
+  if (app.gameOver) {
+    // crashed/escaped — nothing live to preserve, so set up the scene fresh
+    app.gameOver = false;
+    if (mode === 'lessons') loadLesson(app.lessonIdx);
+    else { setOrbitCircular(500); app.scale = null; app.camCenter = [0, 0]; applyControlPolicy(); }
+  } else {
+    // switching views NEVER resets a live orbit — only the Reset/Restart
+    // buttons (and lesson navigation) do that.
+    if (mode === 'lessons') renderLessonCard();
+    else applyControlPolicy();
   }
 }
 document.getElementById('tabLessons').addEventListener('click', () => setMode('lessons'));
