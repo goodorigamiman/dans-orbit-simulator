@@ -553,6 +553,35 @@ function setOrbitLunarApproach() {
   setOrbitState(stateFromElements(el, MU_MOON), 'moon');
 }
 
+// Mission control's suggested trans-lunar plan: one prograde burn sized so the
+// transfer apoapsis pokes into the Moon's SOI, placed at the spot on the current
+// orbit where the arrival meets the Moon's FUTURE position (the transfer window).
+function suggestedTransferPlan() {
+  const el0 = currentElements();
+  if (app.frame !== 'earth' || el0.e >= 1 || el0.a <= 0) return null;
+  const r1 = vmag(currentState().r);
+  const ra = moonDist() + soiRadius() * 0.25;
+  const aT = (r1 + ra) / 2;
+  const vNow = Math.sqrt(MU * (2 / r1 - 1 / el0.a));
+  const dv = Math.round((Math.sqrt(MU * (2 / r1 - 1 / aT)) - vNow) * 1000);
+  let best = null;
+  for (let nuB = 0; nuB < TWO_PI; nuB += 0.03) {
+    const s = stateFromElements({ ...el0, nu: nuB }, MU);
+    const vm = vmag(s.v);
+    const k = 1 + dv / 1000 / vm;
+    const fin = elementsFromState({ r: s.r, v: [s.v[0] * k, s.v[1] * k] }, MU);
+    if (!(fin.e < 1 && fin.a > 0)) continue;
+    const t1 = timeToNu(el0, nuB, MU);
+    const t2 = timeToNu({ ...fin, nu: nuB }, Math.PI, MU);
+    if (!isFinite(t1) || !isFinite(t2)) continue;
+    const apoP = stateFromElements({ ...fin, nu: Math.PI }, MU).r;
+    const mp = moonPos(app.simTime + t1 + t2);
+    const miss = Math.hypot(apoP[0] - mp[0], apoP[1] - mp[1]);
+    if (!best || miss < best.miss) best = { nu: nuB, miss };
+  }
+  return best ? { nu: best.nu, dv } : null;
+}
+
 function hohmannDv(r1, r2) {
   const v1 = Math.sqrt(MU / r1), v2 = Math.sqrt(MU / r2);
   return {
@@ -734,18 +763,26 @@ const LESSONS = [
   },
   {
     title: '8 · Lead the Moon',
-    goal: `Time to leave home. The <b style="color:var(--moon)">Moon</b> is that grey
+    goal: () => {
+      const dv = app.plan.length ? Math.abs(app.plan[0].dv).toLocaleString() : '~3,000';
+      return `Time to leave home. The <b style="color:var(--moon)">Moon</b> is that grey
       disc — and it's <em>moving</em>. Aim where it is now and you'll arrive at empty
       space. You must aim where it <em>will</em> be — like throwing to a running
       catcher.<br><br>
-      Add a prograde maneuver point, set its Range to ±3500, and drag or type a burn
-      of ~<b>2,900–3,100 m/s</b> until your preview orbit stretches out to Moon
-      altitude. A
-      <b style="color:var(--moon)">ghost Moon</b> appears where the Moon will be when
-      you arrive — adjust your burn point around the orbit until the ghost sits on
-      your arrival point, then execute and coast.<br><br>
-      <b>Goal:</b> enter the Moon's <span class="tip" data-tip="The region where the Moon's gravity dominates Earth's. Cross it and the simulator hands you over to Moon-centered orbit — exactly how real mission planners divide space.">sphere of influence</span> (the dashed circle around the Moon).`,
-    init: () => { setOrbitCircular(300); app.moonTheta0 = 2.4; },
+      Mission control has pre-loaded your departure: <b>one prograde burn of
+      ${dv} m/s</b> — just shy of escape velocity (lesson 7!) — placed at the exact
+      spot on your orbit so your long transfer ellipse arrives where the
+      <b style="color:var(--moon)">ghost Moon</b> shows the Moon <em>will</em> be.<br><br>
+      Press <em>Execute plan</em> and coast — or first nudge the burn's size or spot
+      and watch the ghost and your arrival point drift apart, then fix it.<br><br>
+      <b>Goal:</b> enter the Moon's <span class="tip" data-tip="The region where the Moon's gravity dominates Earth's. Cross it and the simulator hands you over to Moon-centered orbit — exactly how real mission planners divide space.">sphere of influence</span> (the dashed circle around the Moon).`;
+    },
+    init: () => {
+      setOrbitCircular(300); app.moonTheta0 = 2.4;
+      app.moonEnabled = true;   // the transfer solver needs the Moon before renderLessonCard runs
+      const plan = suggestedTransferPlan();
+      if (plan) { app.plan = [{ nu: plan.nu, dv: plan.dv, angDeg: 0 }]; app.planSel = 0; syncNodeSliders(); updatePlanUI(); }
+    },
     burnsAllowed: true, plannedAllowed: true,
     moon: true,
     check: () => app.frame === 'moon',
@@ -1566,7 +1603,7 @@ function renderLessonCard() {
   card.style.display = 'block';
   document.getElementById('lessonHeader').textContent = `Lesson ${app.lessonIdx + 1} of ${LESSONS.length}`;
   document.getElementById('lessonTitle').textContent = lesson.title.replace(/^\d+ · /, '');
-  let goal = lesson.goal;
+  let goal = typeof lesson.goal === 'function' ? lesson.goal() : lesson.goal;
   if (lesson.staged && app.lessonStage === 1) goal = lesson.stageGoal2;
   document.getElementById('lessonGoal').innerHTML = goal +
     (lesson.continueButton ? `<div style="margin-top:10px"><button class="ctl primary" id="btnContinue">I watched it — continue →</button></div>` : '');
