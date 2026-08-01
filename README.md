@@ -34,6 +34,9 @@ The most important (and most counterintuitive) idea in orbital mechanics:
   influence* and the sim hands you over to Moon-centered orbit (patched conics, the
   same model mission planners teach). Toggle between the real 384,400 km distance
   and a closer "classroom" Moon that fits on one screen.
+- **Zoom** — auto by default (the camera follows your orbit); a logarithmic Zoom
+  slider or the mouse wheel glides smoothly from Earth close-ups to the whole
+  Earth–Moon system, and *Auto zoom* hands the camera back.
 - Hover any dotted-underlined term for a plain-English explanation.
 
 ## iPhone / iPad

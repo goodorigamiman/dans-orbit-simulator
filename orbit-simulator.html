@@ -196,6 +196,14 @@
     </div>
 
     <div class="card">
+      <h2>View</h2>
+      <div class="slider-label"><span><span class="tip" data-tip="Zoom the camera between close-up (Earth orbit) and wide (the whole Earth–Moon system). The slider is logarithmic, so it glides smoothly across both regimes. Auto zoom follows your orbit by itself.">Zoom</span></span><b id="zoomVal">auto</b></div>
+      <input type="range" id="zoom" min="0" max="1000" step="1" value="500">
+      <div class="slider-label"><span>◀ wide (Moon)</span><span>close (Earth) ▶</span></div>
+      <button class="ctl" id="btnAutoZoom" style="margin-top:8px;width:100%">🎯 Auto zoom (follow my orbit)</button>
+    </div>
+
+    <div class="card">
       <h2>Time</h2>
       <div class="slider-label"><span><span class="tip" data-tip="Real orbits take hours to days. Time warp speeds up the clock so you don't have to wait. Burns automatically slow the clock down so you can steer.">Time warp</span></span><b id="warpVal">50×</b></div>
       <input type="range" id="warp" min="0" max="6" step="1" value="2">
@@ -459,6 +467,9 @@ const app = {
   trail: [],                    // ABSOLUTE positions
   scale: null,
   camCenter: [0, 0],            // lerped camera center (absolute)
+  zoomMode: 'auto',             // 'auto' follows the orbit; 'manual' obeys the slider/wheel
+  manualFit: 20000,             // km of world radius shown when manual
+  lastFit: 20000,               // whatever fit was used last frame (for wheel/slider pickup)
   plan: [],                     // [{nu, dv, angDeg}] — node k lives on orbit after node k-1
   planSel: -1,
   placingNode: false,
@@ -509,6 +520,7 @@ function setOrbitState(state, frame) {
   app.trail = [];
   app.dvSpent = 0;
   app.simTime = 0;
+  app.zoomMode = 'auto';   // a fresh scenario re-follows the orbit
   app.plan = []; app.planSel = -1; app.placingNode = false; app.execIdx = -1;
   updatePlanUI();
 }
@@ -902,8 +914,10 @@ function render() {
   ctx.clearRect(0, 0, CW, CH);
   drawStars();
 
-  // camera: center on primary, fit orbit envelope
-  const targetScale = Math.min(CW, CH) * 0.46 / fitRadius();
+  // camera: center on primary; fit the orbit envelope (auto) or the user's zoom (manual)
+  const fit = app.zoomMode === 'manual' ? app.manualFit : fitRadius();
+  app.lastFit = fit;
+  const targetScale = Math.min(CW, CH) * 0.46 / fit;
   app.scale = app.scale == null ? targetScale : app.scale + (targetScale - app.scale) * 0.07;
   const targetCenter = primPos();
   app.camCenter = [app.camCenter[0] + (targetCenter[0] - app.camCenter[0]) * 0.08,
@@ -1622,6 +1636,7 @@ function updateReadouts() {
   document.getElementById('roDv').textContent = Math.round(app.dvSpent) + ' m/s';
   document.getElementById('frameChip').textContent = app.frame === 'moon' ? ' · orbiting the MOON' : '';
   updateCoach();
+  updateZoomUI();
 }
 
 function syncWarpUI() {
@@ -1635,6 +1650,45 @@ function syncSteerUI() {
   document.getElementById('steer').value = app.steerDeg;
   document.getElementById('steerVal').textContent = app.steerDeg + '°';
 }
+
+/* ---- zoom: log-scale slider between close-up and Earth–Moon regimes ---- */
+const ZOOM_MIN = 3000, ZOOM_MAX = 1000000;   // km of world radius shown
+const LOG_MIN = Math.log10(ZOOM_MIN), LOG_MAX = Math.log10(ZOOM_MAX);
+function sliderToFit(t) {   // t=0 wide … t=1000 close
+  return Math.pow(10, LOG_MAX - t / 1000 * (LOG_MAX - LOG_MIN));
+}
+function fitToSlider(fit) {
+  const f = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
+  return Math.round(1000 * (LOG_MAX - Math.log10(f)) / (LOG_MAX - LOG_MIN));
+}
+function setManualZoom(fit) {
+  app.zoomMode = 'manual';
+  app.manualFit = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
+}
+function updateZoomUI() {
+  const slider = document.getElementById('zoom');
+  const label = document.getElementById('zoomVal');
+  if (app.zoomMode === 'auto') {
+    slider.value = fitToSlider(app.lastFit);
+    label.textContent = 'auto';
+  } else {
+    label.textContent = fmtKm(app.manualFit);
+  }
+}
+document.getElementById('zoom').addEventListener('input', (e) => {
+  setManualZoom(sliderToFit(+e.target.value));
+  updateZoomUI();
+});
+document.getElementById('btnAutoZoom').addEventListener('click', () => {
+  app.zoomMode = 'auto';
+  updateZoomUI();
+});
+cv.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const base = app.zoomMode === 'manual' ? app.manualFit : app.lastFit;
+  setManualZoom(base * Math.exp(e.deltaY * 0.0012));
+  updateZoomUI();
+}, { passive: false });
 
 document.getElementById('warp').addEventListener('input', (e) => {
   app.warpIdx = +e.target.value; syncWarpUI();
