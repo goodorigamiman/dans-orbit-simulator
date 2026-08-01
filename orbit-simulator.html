@@ -18,6 +18,7 @@
     --apo: #ff8f6b;
     --peri: #6bffd4;
     --danger: #ff6b81;
+    --moon: #c9c4b8;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -53,6 +54,7 @@
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
     background: rgba(19,26,46,.9); border: 1px solid var(--line); border-radius: 8px;
     padding: 6px 14px; font-size: 13px; color: var(--target); display: none;
+    max-width: 90%; text-align: center;
   }
   #sidebar {
     flex: 0 0 330px; background: var(--panel); border-left: 1px solid var(--line);
@@ -89,15 +91,28 @@
   .slider-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); }
   .slider-label b { color: var(--text); font-variant-numeric: tabular-nums; }
   #plannedBox .hint { font-size: 12px; color: var(--dim); margin: 6px 0; }
-  #nodePreview { font-size: 12.5px; margin-top: 6px; color: var(--preview); display: none; }
+  #planPreview { font-size: 12.5px; margin-top: 6px; color: var(--preview); display: none; }
+  #planList { margin-top: 8px; display: none; flex-direction: column; gap: 4px; }
+  .planRow {
+    display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--line);
+    border-radius: 7px; cursor: pointer; font-size: 12.5px; background: var(--panel);
+  }
+  .planRow.sel { border-color: var(--preview); background: #17301a; }
+  .planRow .num { color: var(--preview); font-weight: 700; }
+  .planRow .desc { flex: 1; color: var(--text); }
+  .planRow .del { color: var(--danger); background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 4px; }
   /* tooltips */
   .tip { border-bottom: 1px dotted var(--dim); cursor: help; position: relative; }
-  .tip:hover::after {
+  .tip:hover::after, .tip:focus::after {
     content: attr(data-tip); position: absolute; left: 0; bottom: 130%;
     background: #0e1428; color: var(--text); border: 1px solid var(--accent);
     padding: 8px 10px; border-radius: 8px; width: 230px; font-size: 12px; line-height: 1.4;
     z-index: 30; pointer-events: none;
   }
+  button:focus-visible, input:focus-visible, .tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #physBadge { margin-left: 10px; }
+  #physBadge.ok { color: var(--peri); }
+  #physBadge.fail { color: var(--danger); }
   /* overlay */
   #overlay {
     position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
@@ -113,16 +128,8 @@
   #overlay .btns { display: flex; gap: 8px; margin-top: 14px; }
   footer { padding: 5px 14px; font-size: 11.5px; color: var(--dim); background: var(--panel); border-top: 1px solid var(--line); flex: 0 0 auto; }
   #canvasBox.placing { cursor: crosshair; }
-  button:focus-visible, input:focus-visible, .tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .tip:focus::after {
-    content: attr(data-tip); position: absolute; left: 0; bottom: 130%;
-    background: #0e1428; color: var(--text); border: 1px solid var(--accent);
-    padding: 8px 10px; border-radius: 8px; width: 230px; font-size: 12px; line-height: 1.4;
-    z-index: 30; pointer-events: none;
-  }
-  #physBadge { margin-left: 10px; }
-  #physBadge.ok { color: var(--peri); }
-  #physBadge.fail { color: var(--danger); }
+  .radioRow { display: flex; gap: 12px; font-size: 12.5px; align-items: center; }
+  .radioRow label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
   @media (max-width: 860px) {
     #wrap { flex-direction: column; }
     #canvasBox { flex: 1 1 55%; min-height: 48vh; min-height: 48dvh; }
@@ -177,20 +184,20 @@
     </div>
 
     <div class="card">
-      <h2>Your orbit</h2>
+      <h2>Your orbit <span id="frameChip" style="color:var(--moon);text-transform:none;letter-spacing:0"></span></h2>
       <div class="readouts">
-        <div class="item"><div class="k"><span class="tip" data-tip="How far you are above the Earth's surface right now.">Altitude</span></div><div class="v" id="roAlt">–</div></div>
-        <div class="item"><div class="k"><span class="tip" data-tip="How fast you are moving along your orbit right now.">Speed</span></div><div class="v" id="roSpd">–</div></div>
+        <div class="item"><div class="k"><span class="tip" data-tip="How far you are above the surface of the body you're orbiting right now.">Altitude</span></div><div class="v" id="roAlt">–</div></div>
+        <div class="item"><div class="k"><span class="tip" data-tip="How fast you are moving along your orbit right now (relative to the body you're orbiting).">Speed</span></div><div class="v" id="roSpd">–</div></div>
         <div class="item"><div class="k"><span class="tip" data-tip="The HIGHEST point of your orbit (rocket scientists call it the apoapsis). Marked on screen with an orange dot.">High point</span></div><div class="v apo" id="roApo">–</div></div>
-        <div class="item"><div class="k"><span class="tip" data-tip="The LOWEST point of your orbit (the periapsis). Marked on screen with a teal dot. If it dips into the atmosphere, you're coming home!">Low point</span></div><div class="v peri" id="roPeri">–</div></div>
-        <div class="item"><div class="k"><span class="tip" data-tip="How long one full trip around the Earth takes on your current orbit.">Orbit time</span></div><div class="v" id="roPeriod">–</div></div>
+        <div class="item"><div class="k"><span class="tip" data-tip="The LOWEST point of your orbit (the periapsis). Marked on screen with a teal dot.">Low point</span></div><div class="v peri" id="roPeri">–</div></div>
+        <div class="item"><div class="k"><span class="tip" data-tip="How long one full trip around takes on your current orbit.">Orbit time</span></div><div class="v" id="roPeriod">–</div></div>
         <div class="item"><div class="k"><span class="tip" data-tip="Total 'push' you've used so far. Rocket scientists call it delta-v — it's the fuel currency of spaceflight.">Fuel used (Δv)</span></div><div class="v" id="roDv">0 m/s</div></div>
       </div>
     </div>
 
     <div class="card">
       <h2>Time</h2>
-      <div class="slider-label"><span><span class="tip" data-tip="Real orbits take about 90 minutes. Time warp speeds up the clock so you don't have to wait. Burns automatically slow the clock down so you can steer.">Time warp</span></span><b id="warpVal">50×</b></div>
+      <div class="slider-label"><span><span class="tip" data-tip="Real orbits take hours to days. Time warp speeds up the clock so you don't have to wait. Burns automatically slow the clock down so you can steer.">Time warp</span></span><b id="warpVal">50×</b></div>
       <input type="range" id="warp" min="0" max="6" step="1" value="2">
       <div class="row" style="margin-top:8px">
         <button class="ctl" id="btnPause">⏸ Pause</button>
@@ -203,27 +210,46 @@
         <button class="ctl hold" id="btnPro">▲ Prograde<br><small>speed up</small></button>
         <button class="ctl hold" id="btnRetro">▼ Retrograde<br><small>slow down</small></button>
       </div>
+      <div style="margin-top:10px">
+        <div class="slider-label"><span><span class="tip" data-tip="Tilts your engine away from straight ahead/behind. 0° = pure prograde/retrograde. ±90° = pushing sideways (toward or away from the body you orbit). Sideways burns ROTATE your orbit more than they grow it.">Steer</span></span><b id="steerVal">0°</b></div>
+        <input type="range" id="steer" min="-90" max="90" step="5" value="0">
+        <div class="slider-label"><span>◀ inward</span><span>outward ▶</span></div>
+      </div>
       <div class="hint" style="font-size:12px;color:var(--dim);margin-top:6px">Tip: you can also hold the ↑ / ↓ arrow keys.</div>
     </div>
 
     <div class="card" id="plannedBox">
-      <h2>Plan a burn — <span class="tip" data-tip="Real mission controllers don't 'fly by hand' — they plan a burn at an exact point on the orbit, check the predicted result, then execute. This is how you do a clean two-burn transfer.">maneuver point</span></h2>
+      <h2>Flight plan — <span class="tip" data-tip="Real mission controllers plan burns at exact points on the orbit, check the predicted result, then execute. Chain several burns to plan a whole mission before flying it.">maneuver points</span></h2>
       <div class="hint" id="planHint">Click the button, then click a spot on your orbit.</div>
-      <button class="ctl primary" id="btnPlan">＋ Place a maneuver point</button>
+      <button class="ctl primary" id="btnPlan">＋ Add a maneuver point</button>
       <div class="row" style="margin-top:8px">
-        <button class="ctl" id="btnSnapPeri" title="Snap the maneuver point to the low point (key P)">@ Low point</button>
-        <button class="ctl" id="btnSnapApo" title="Snap the maneuver point to the high point (key A)">@ High point</button>
+        <button class="ctl" id="btnSnapPeri" title="Add a maneuver point at the low point (key P)">@ Low point</button>
+        <button class="ctl" id="btnSnapApo" title="Add a maneuver point at the high point (key A)">@ High point</button>
       </div>
+      <div id="planList"></div>
       <div id="nodeControls" style="display:none; margin-top:10px">
         <div class="slider-label"><span>Burn strength</span><b id="nodeDvVal">0 m/s</b></div>
         <input type="range" id="nodeDv" min="-500" max="500" step="1" value="0">
         <div class="slider-label"><span>◀ slow down</span><span>speed up ▶</span></div>
-        <div id="nodePreview"></div>
+        <div class="slider-label" style="margin-top:6px"><span><span class="tip" data-tip="Direction of this burn relative to your motion at that point. 0° = prograde (straight ahead), ±180° = retrograde (straight back), ±90° = sideways.">Direction</span></span><b id="nodeAngVal">0°</b></div>
+        <input type="range" id="nodeAng" min="-180" max="180" step="5" value="0">
+        <div id="planPreview"></div>
         <div class="row" style="margin-top:8px">
-          <button class="ctl primary" id="btnExec">Execute burn</button>
-          <button class="ctl" id="btnClearNode">Cancel</button>
+          <button class="ctl primary" id="btnExec">Execute plan</button>
+          <button class="ctl" id="btnClearPlan">Clear plan</button>
         </div>
       </div>
+    </div>
+
+    <div class="card" id="moonBox" style="display:none">
+      <h2>The Moon</h2>
+      <div class="radioRow" id="moonScaleRow">
+        <span class="tip" data-tip="Real: the Moon at its true 384,400 km — Earth becomes tiny when you zoom out, because space is BIG. Classroom: same physics, Moon moved to 100,000 km so everything fits on one screen.">Distance</span>
+        <label><input type="radio" name="moonScale" value="classroom" checked> Classroom</label>
+        <label><input type="radio" name="moonScale" value="real"> Real</label>
+      </div>
+      <label class="radioRow" id="moonOnRow" style="margin-top:6px;display:none"><input type="checkbox" id="moonOn"> Moon present</label>
+      <div class="hint" style="font-size:11.5px;color:var(--dim);margin-top:6px">Changing these resets the current orbit.</div>
     </div>
 
     <div class="card" id="sandboxBox" style="display:none">
@@ -235,7 +261,7 @@
         <button class="ctl" id="presetHigh" title="Circular 2,000 km">High 2000</button>
       </div>
       <button class="ctl" id="btnReset" style="margin-top:8px">↺ Reset orbit</button>
-      <div class="hint" style="font-size:11.5px;color:var(--dim);margin-top:8px">Keys: ↑/↓ burn · [ ] time warp · Space pause · P/A snap node low/high · X clear node · R reset</div>
+      <div class="hint" style="font-size:11.5px;color:var(--dim);margin-top:8px">Keys: ↑/↓ burn · [ ] time warp · Space pause · P/A add node low/high · X clear plan · R reset</div>
     </div>
   </div>
 </div>
@@ -244,27 +270,36 @@
 <script>
 'use strict';
 /* ============================== physics ==============================
-   2D two-body problem around Earth. Units: km, km/s, seconds.
-   Vector math kept general so a 3D version can extend it later. */
-const MU = 398600.4418;   // Earth GM, km^3/s^2
-const R_EARTH = 6371;     // km
+   2D two-body problem, any central body (patched conics between them).
+   Units: km, km/s, seconds. Every function takes mu; default Earth. */
+const MU = 398600.4418;       // Earth GM, km^3/s^2
+const MU_MOON = 4902.800066;  // Moon GM
+const R_EARTH = 6371;         // km
+const R_MOON = 1737.4;        // km
 const TWO_PI = Math.PI * 2;
 
 function normAngle(a) { a = a % TWO_PI; return a < 0 ? a + TWO_PI : a; }
+function signedNu(nu) { nu = normAngle(nu); return nu > Math.PI ? nu - TWO_PI : nu; }
 function vdot(a, b) { return a[0] * b[0] + a[1] * b[1]; }
 function vmag(a) { return Math.hypot(a[0], a[1]); }
+function vsub(a, b) { return [a[0] - b[0], a[1] - b[1]]; }
+function vadd(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
+function vrot(u, ang) {
+  const c = Math.cos(ang), s = Math.sin(ang);
+  return [u[0] * c - u[1] * s, u[0] * s + u[1] * c];
+}
 
-function elementsFromState(s) {
+function elementsFromState(s, mu = MU) {
   const r = s.r, v = s.v;
   const rm = vmag(r), vm2 = vdot(v, v);
   const h = r[0] * v[1] - r[1] * v[0];
   const dir = h >= 0 ? 1 : -1;
-  const energy = vm2 / 2 - MU / rm;
-  const a = -MU / (2 * energy);
+  const energy = vm2 / 2 - mu / rm;
+  const a = -mu / (2 * energy);
   const rv = vdot(r, v);
-  const c = vm2 - MU / rm;
-  const ex = (c * r[0] - rv * v[0]) / MU;
-  const ey = (c * r[1] - rv * v[1]) / MU;
+  const c = vm2 - mu / rm;
+  const ex = (c * r[0] - rv * v[0]) / mu;
+  const ey = (c * r[1] - rv * v[1]) / mu;
   const e = Math.hypot(ex, ey);
   let omega, nu;
   if (e < 1e-10) {
@@ -280,14 +315,14 @@ function elementsFromState(s) {
   return { a, e, omega, nu, dir };
 }
 
-function stateFromElements(el) {
+function stateFromElements(el, mu = MU) {
   const { a, e, omega, nu, dir } = el;
   const p = a * (1 - e * e);
-  const habs = Math.sqrt(Math.abs(MU * p));
+  const habs = Math.sqrt(Math.abs(mu * p));
   const rm = p / (1 + e * Math.cos(nu));
   const theta = omega + dir * nu;
   const cosT = Math.cos(theta), sinT = Math.sin(theta);
-  const vr = (MU / habs) * e * Math.sin(nu);
+  const vr = (mu / habs) * e * Math.sin(nu);
   const vt = habs / rm;
   return {
     r: [rm * cosT, rm * sinT],
@@ -310,30 +345,65 @@ function solveKepler(M, e) {
   }
   return E;
 }
-function propagateKepler(el, dt) {
-  const { a, e } = el;
-  const n = Math.sqrt(MU / (a * a * a));
-  const E0 = trueToEccentric(el.nu, e);
-  const M0 = E0 - e * Math.sin(E0);
-  const E = solveKepler(normAngle(M0 + n * dt), e);
-  return { ...el, nu: eccentricToTrue(E, e) };
+function trueToHyperbolic(nu, e) {
+  const x = Math.sqrt((e - 1) / (e + 1)) * Math.tan(nu / 2);
+  return 2 * Math.atanh(Math.max(-0.999999999999, Math.min(0.999999999999, x)));
 }
-function timeToNu(el, nuTarget) {  // seconds of coasting until true anomaly nuTarget
-  const e = el.e;
-  const n = Math.sqrt(MU / (el.a ** 3));
-  const E0 = trueToEccentric(el.nu, e);
-  const M0 = E0 - e * Math.sin(E0);
-  const E1 = trueToEccentric(nuTarget, e);
-  const M1 = E1 - e * Math.sin(E1);
-  let dM = normAngle(M1 - M0);
-  return dM / n;
+function hyperbolicToTrue(F, e) {
+  return 2 * Math.atan(Math.sqrt((e + 1) / (e - 1)) * Math.tanh(F / 2));
 }
-function orbitalPeriod(a) { return TWO_PI * Math.sqrt(a * a * a / MU); }
+function solveKeplerHyperbolic(M, e) {
+  let F = Math.asinh(M / e);
+  for (let i = 0; i < 50; i++) {
+    const dF = (e * Math.sinh(F) - F - M) / (e * Math.cosh(F) - 1);
+    F -= dF;
+    if (Math.abs(dF) < 1e-13) break;
+  }
+  return F;
+}
 
-function rk4Step(s, dt, thrustFn) {
+// Advance any conic orbit by dt seconds (analytic, drift-free).
+function propagateKepler(el, dt, mu = MU) {
+  const { a, e } = el;
+  if (e < 1 && a > 0) {
+    const n = Math.sqrt(mu / (a * a * a));
+    const E0 = trueToEccentric(el.nu, e);
+    const M0 = E0 - e * Math.sin(E0);
+    const E = solveKepler(normAngle(M0 + n * dt), e);
+    return { ...el, nu: eccentricToTrue(E, e) };
+  }
+  const n = Math.sqrt(mu / Math.abs(a * a * a));
+  const F0 = trueToHyperbolic(signedNu(el.nu), e);
+  const M0 = e * Math.sinh(F0) - F0;
+  const F = solveKeplerHyperbolic(M0 + n * dt, e);
+  return { ...el, nu: normAngle(hyperbolicToTrue(F, e)) };
+}
+
+// Coast time until nuTarget. Elliptic: always finite. Hyperbolic: Infinity if behind.
+function timeToNu(el, nuTarget, mu = MU) {
+  const e = el.e, a = el.a;
+  if (e < 1 && a > 0) {
+    const n = Math.sqrt(mu / (a * a * a));
+    const E0 = trueToEccentric(el.nu, e);
+    const M0 = E0 - e * Math.sin(E0);
+    const E1 = trueToEccentric(nuTarget, e);
+    const M1 = E1 - e * Math.sin(E1);
+    return normAngle(M1 - M0) / n;
+  }
+  const n = Math.sqrt(mu / Math.abs(a * a * a));
+  const F0 = trueToHyperbolic(signedNu(el.nu), e);
+  const M0 = e * Math.sinh(F0) - F0;
+  const F1 = trueToHyperbolic(signedNu(nuTarget), e);
+  const M1 = e * Math.sinh(F1) - F1;
+  return M1 > M0 ? (M1 - M0) / n : Infinity;
+}
+
+function orbitalPeriod(a, mu = MU) { return TWO_PI * Math.sqrt(a * a * a / mu); }
+
+function rk4Step(s, dt, thrustFn, mu = MU) {
   function accel(r, v) {
     const rm = vmag(r);
-    const g = -MU / (rm * rm * rm);
+    const g = -mu / (rm * rm * rm);
     let ax = g * r[0], ay = g * r[1];
     if (thrustFn) { const t = thrustFn(r, v); ax += t[0]; ay += t[1]; }
     return [ax, ay];
@@ -359,43 +429,78 @@ function rk4Step(s, dt, thrustFn) {
 
 /* ============================== app state ============================== */
 const WARPS = [1, 10, 50, 250, 1000, 5000, 10000];
-const THRUST_ACCEL = 0.005;      // km/s^2 (~0.5 g) — visible orbit change in seconds of holding
-const BURN_WARP_CAP = 20;        // clock slows to at most this during a live burn
-const REENTRY_ALT = 90;          // km — below this the atmosphere takes over ("coming home")
-const ESCAPE_R = 15 * R_EARTH;
+const THRUST_ACCEL = 0.005;      // km/s^2 (~0.5 g)
+const BURN_WARP_CAP = 20;
+const REENTRY_ALT = 90;          // Earth: atmosphere takes over below this
+const MOON_CRASH_ALT = 5;        // Moon has no atmosphere — surface contact
+const MOON_DIST = { real: 384400, classroom: 100000 };
 
 const app = {
-  mode: 'lessons',              // 'lessons' | 'sandbox'
-  el: null,                     // orbital elements while coasting (source of truth)
-  state: null,                  // {r, v} while thrusting / escaping
-  coasting: true,               // true => propagate el analytically
+  mode: 'lessons',
+  frame: 'earth',               // 'earth' | 'moon' — who owns the ship (patched conics)
+  el: null,                     // orbital elements RELATIVE to current primary
+  state: null,                  // {r, v} relative, used while thrusting
+  coasting: true,
   paused: false,
   warpIdx: 2,
-  thrustSign: 0,                // +1 prograde, -1 retrograde, 0 off
-  dvSpent: 0,                   // m/s
-  trail: [],
-  scale: null,                  // px per km (smoothed)
-  node: null,                   // {nu, dv} planned maneuver
+  thrustSign: 0,
+  steerDeg: 0,                  // live-burn steer offset (±90°)
+  dvSpent: 0,
+  trail: [],                    // ABSOLUTE positions
+  scale: null,
+  camCenter: [0, 0],            // lerped camera center (absolute)
+  plan: [],                     // [{nu, dv, angDeg}] — node k lives on orbit after node k-1
+  planSel: -1,
   placingNode: false,
-  execNode: false,              // executing: coasting toward node
+  execIdx: -1,                  // ≥0 while executing that plan index
   execTimeLeft: 0,
   savedWarpIdx: null,
+  moonEnabled: false,
+  moonScale: 'classroom',
+  moonTheta0: 0.7,
   lessonIdx: 0,
   lessonStage: 0,
-  stageDv: 0,                   // dv accumulated near current lesson-3 marker
+  stageDv: 0,
   lessonDone: false,
-  gameOver: false,              // crash/escape overlay showing
+  gameOver: false,
   simTime: 0,
 };
 
-function setOrbitState(state) {
-  app.el = elementsFromState(state);
+function moonDist() { return MOON_DIST[app.moonScale]; }
+function soiRadius() { return moonDist() * Math.pow(MU_MOON / MU, 0.4); }
+function moonRate() { return Math.sqrt(MU / Math.pow(moonDist(), 3)); }
+function moonPos(t) {
+  const th = app.moonTheta0 + moonRate() * t;
+  return [moonDist() * Math.cos(th), moonDist() * Math.sin(th)];
+}
+function moonVel(t) {
+  const th = app.moonTheta0 + moonRate() * t;
+  const v = moonRate() * moonDist();
+  return [-v * Math.sin(th), v * Math.cos(th)];
+}
+function primMu() { return app.frame === 'moon' ? MU_MOON : MU; }
+function primR() { return app.frame === 'moon' ? R_MOON : R_EARTH; }
+function primPos() { return app.frame === 'moon' ? moonPos(app.simTime) : [0, 0]; }
+function escapeLimit() { return app.moonEnabled ? moonDist() * 1.6 : 15 * R_EARTH; }
+
+function currentState() { return app.coasting ? stateFromElements(app.el, primMu()) : app.state; }
+function currentElements() { return app.coasting ? app.el : elementsFromState(app.state, primMu()); }
+function shipAbs() {
+  const s = currentState();
+  if (app.frame === 'earth') return { r: s.r.slice(), v: s.v.slice() };
+  return { r: vadd(s.r, moonPos(app.simTime)), v: vadd(s.v, moonVel(app.simTime)) };
+}
+
+function setOrbitState(state, frame) {
+  app.frame = frame || 'earth';
+  app.el = elementsFromState(state, primMu());
   app.state = state;
   app.coasting = true;
   app.trail = [];
   app.dvSpent = 0;
-  app.node = null; app.placingNode = false; app.execNode = false;
-  updateNodeUI();
+  app.simTime = 0;
+  app.plan = []; app.planSel = -1; app.placingNode = false; app.execIdx = -1;
+  updatePlanUI();
 }
 
 function setOrbitCircular(altKm, startAngle) {
@@ -403,15 +508,27 @@ function setOrbitCircular(altKm, startAngle) {
   const th = startAngle || 0;
   const vc = Math.sqrt(MU / r);
   setOrbitState({ r: [r * Math.cos(th), r * Math.sin(th)],
-                  v: [-vc * Math.sin(th), vc * Math.cos(th)] });
+                  v: [-vc * Math.sin(th), vc * Math.cos(th)] }, 'earth');
 }
 
 function setOrbitEllipse(periAltKm, apoAltKm) {
-  // start the ship at periapsis, on the +x axis
   const rp = R_EARTH + periAltKm, ra = R_EARTH + apoAltKm;
   const a = (rp + ra) / 2;
   const vp = Math.sqrt(MU * (2 / rp - 1 / a));
-  setOrbitState({ r: [rp, 0], v: [0, vp] });
+  setOrbitState({ r: [rp, 0], v: [0, vp] }, 'earth');
+}
+
+// Lesson 8 start: just inside the SOI on an incoming lunar flyby.
+function setOrbitLunarApproach() {
+  const rp = R_MOON + 150, vinf = 0.8;
+  const a = -MU_MOON / (vinf * vinf);
+  const e = 1 + rp * vinf * vinf / MU_MOON;
+  const p = a * (1 - e * e);
+  const r0 = soiRadius() * 0.92;
+  const cosNu = Math.max(-1, Math.min(1, (p / r0 - 1) / e));
+  const nu = -Math.acos(cosNu);                       // incoming branch
+  const el = { a, e, omega: 2.5, nu: normAngle(nu), dir: 1 };
+  setOrbitState(stateFromElements(el, MU_MOON), 'moon');
 }
 
 function hohmannDv(r1, r2) {
@@ -422,15 +539,36 @@ function hohmannDv(r1, r2) {
   };
 }
 
-function currentState() {
-  return app.coasting ? stateFromElements(app.el) : app.state;
+/* ============================== patched-conics handoff ============================== */
+function switchFrame(to, reason) {
+  const t = app.simTime;
+  const abs = shipAbs();
+  if (to === 'moon') {
+    const rel = { r: vsub(abs.r, moonPos(t)), v: vsub(abs.v, moonVel(t)) };
+    app.frame = 'moon';
+    app.el = elementsFromState(rel, MU_MOON);
+    app.state = rel;
+  } else {
+    app.frame = 'earth';
+    app.el = elementsFromState(abs, MU);
+    app.state = abs;
+  }
+  app.coasting = true;
+  app.plan = []; app.planSel = -1; app.execIdx = -1;
+  if (app.savedWarpIdx != null) { app.warpIdx = app.savedWarpIdx; app.savedWarpIdx = null; syncWarpUI(); }
+  updatePlanUI();
+  flashBanner(reason, 5);
 }
-function currentElements() {
-  return app.coasting ? app.el : elementsFromState(app.state);
+
+let bannerTimer = 0;
+function flashBanner(text, seconds) {
+  const b = document.getElementById('banner');
+  b.textContent = text; b.style.display = 'block';
+  bannerTimer = seconds;
 }
 
 /* ============================== lessons ============================== */
-const H_300_1000 = hohmannDv(R_EARTH + 300, R_EARTH + 1000);   // textbook: ~190 + ~186 m/s
+const H_300_1000 = hohmannDv(R_EARTH + 300, R_EARTH + 1000);
 const LESSONS = [
   {
     title: '1 · What is an orbit?',
@@ -458,7 +596,7 @@ const LESSONS = [
       <b>1,000 km</b>.`,
     init: () => setOrbitCircular(300),
     burnsAllowed: true, plannedAllowed: false,
-    check: () => { const el = currentElements(); return el.e < 1 && el.a > 0 && (el.a * (1 + el.e) - R_EARTH) >= 1000; },
+    check: () => { const el = currentElements(); return app.frame === 'earth' && el.e < 1 && el.a > 0 && (el.a * (1 + el.e) - R_EARTH) >= 1000; },
     successText: `You fired your engine <b>here</b>, and the orbit rose <b>over there</b> —
       half a lap away. Speeding up doesn't lift you; it makes you climb further before
       gravity wins, so the far side of your loop stretches upward. Remember this rule:
@@ -495,14 +633,15 @@ const LESSONS = [
       <b>Burn 2:</b> coast to that new high point, then fire prograde <em>again</em>
       (~${Math.round(H_300_1000.dv2 * 1000)} m/s) to raise the low side and make the
       orbit round.<br><br>
-      Try the <em>maneuver point</em> planner — it shows you the result before you
-      commit. <b>Goal:</b> both high and low points within <b>±25 km</b> of 1,000 km.`,
+      Try the <em>flight plan</em> — add BOTH burns first, watch the chained preview,
+      then execute the whole plan. <b>Goal:</b> both high and low points within
+      <b>±25 km</b> of 1,000 km.`,
     init: () => setOrbitCircular(300),
     burnsAllowed: true, plannedAllowed: true,
     target: { altKm: 1000 },
     check: () => {
       const el = currentElements();
-      if (el.e >= 1 || el.a <= 0) return false;
+      if (app.frame !== 'earth' || el.e >= 1 || el.a <= 0) return false;
       const apo = el.a * (1 + el.e) - R_EARTH, peri = el.a * (1 - el.e) - R_EARTH;
       return Math.abs(apo - 1000) <= 25 && Math.abs(peri - 1000) <= 25;
     },
@@ -522,13 +661,75 @@ const LESSONS = [
       free.<br><br><b>Goal:</b> low point below 80 km.`,
     init: () => setOrbitCircular(600),
     burnsAllowed: true, plannedAllowed: true,
-    check: () => { const el = currentElements(); return el.e < 1 && el.a > 0 && (el.a * (1 - el.e) - R_EARTH) <= 80; },
+    check: () => { const el = currentElements(); return app.frame === 'earth' && el.e < 1 && el.a > 0 && (el.a * (1 - el.e) - R_EARTH) <= 80; },
     successText: `One modest retrograde burn and gravity + the atmosphere handle the rest —
       this is exactly how capsules come home. Notice you never "flew down": you slowed
-      down here, and the orbit dipped over there.<br><br>🎓 <b>You've got the core idea of
-      orbital mechanics:</b> orbits are controlled by changing speed, the change appears on
-      the opposite side, and big moves take two burns. (Keep coasting and you'll re-enter —
+      down here, and the orbit dipped over there. (Keep coasting and you'll re-enter —
       try it!)`,
+  },
+  {
+    title: '6 · Steering the burn',
+    goal: `So far you've pushed straight ahead or straight back. Real engines can
+      <em>point</em>. Drag the new <em>Steer</em> slider to at least <b>±60°</b>, then
+      hold <em>▲ Prograde</em> and burn about <b>40 m/s</b>.<br><br>
+      Watch what a sideways push does: the orbit mostly <em>rotates and reshapes</em> —
+      it barely grows.<br><br><b>Goal:</b> burn 40 m/s with the steer at ±60° or more.`,
+    init: () => { setOrbitCircular(400); app.lessonStage = 0; app.stageDv = 0; },
+    burnsAllowed: true, plannedAllowed: false,
+    steered: true,
+    successText: `Feel the difference? A sideways (radial) push spends fuel
+      <b>rotating</b> the orbit instead of growing it. To change your orbit's SIZE,
+      push along your motion; to shift its orientation, push across it. That's why
+      real missions burn <b>prograde or retrograde almost every time</b> — fuel is
+      precious, and pushing along your velocity buys the most orbit per drop.`,
+  },
+  {
+    title: '7 · Lead the Moon',
+    goal: `Time to leave home. The <b style="color:var(--moon)">Moon</b> is that grey
+      disc — and it's <em>moving</em>. Aim where it is now and you'll arrive at empty
+      space. You must aim where it <em>will</em> be — like throwing to a running
+      catcher.<br><br>
+      Add a prograde maneuver point and drag its burn up (~<b>2,900–3,100 m/s</b>)
+      until your preview orbit stretches out to Moon altitude. A
+      <b style="color:var(--moon)">ghost Moon</b> appears where the Moon will be when
+      you arrive — adjust your burn point around the orbit until the ghost sits on
+      your arrival point, then execute and coast.<br><br>
+      <b>Goal:</b> enter the Moon's <span class="tip" data-tip="The region where the Moon's gravity dominates Earth's. Cross it and the simulator hands you over to Moon-centered orbit — exactly how real mission planners divide space.">sphere of influence</span> (the dashed circle around the Moon).`,
+    init: () => { setOrbitCircular(300); app.moonTheta0 = 2.4; },
+    burnsAllowed: true, plannedAllowed: true,
+    moon: true,
+    check: () => app.frame === 'moon',
+    successText: `Welcome to the Moon's neighborhood! You just used a <b>transfer
+      window</b>: you fired on one side of Earth so your long ellipse would arrive
+      where the Moon <i>would be</i>, days later. This lead-the-target timing is why
+      real missions launch on precise schedules. Notice the handoff: inside the dashed
+      circle — the <b>sphere of influence</b> — the Moon's gravity owns you now.`,
+  },
+  {
+    title: '8 · Lunar orbit insertion',
+    goal: `You're arriving at the Moon on a <em>flyby</em> path. Do nothing and its
+      gravity will sling you around and throw you back to deep space — you're going
+      too fast to stay.<br><br>
+      <b>Arriving is braking.</b> Wait until you're near your closest approach to the
+      Moon (the <span style="color:var(--peri)">low point</span> marker), then hold
+      <em>▼ Retrograde</em> until your orbit closes into a loop around the Moon.<br><br>
+      <b>Goal:</b> get <em>captured</em> — a closed orbit entirely inside the Moon's
+      sphere of influence.`,
+    init: () => { app.moonTheta0 = 0.7; setOrbitLunarApproach(); app.warpIdx = 2; },
+    burnsAllowed: true, plannedAllowed: true,
+    moon: true,
+    check: () => {
+      if (app.frame !== 'moon') return false;
+      const el = currentElements();
+      return el.e < 1 && el.a > 0 && el.a * (1 + el.e) < soiRadius() * 0.9;
+    },
+    successText: `🌙 <b>Lunar orbit achieved!</b> That retrograde burn at closest
+      approach is called the <b>insertion burn</b> (Apollo called it LOI), and every
+      mission that orbits another world does exactly this: arrive on a flyby, then
+      <b>brake at the low point</b> until gravity can hold you. You've now used every
+      core idea — burns change the opposite side, timing sets where, prograde/retrograde
+      set growth, and patience sets up the window.<br><br>🎓 Course complete — the
+      Sandbox is all yours.`,
   },
 ];
 
@@ -538,12 +739,11 @@ const ctx = cv.getContext('2d');
 let CW = 0, CH = 0, DPR = 1;
 
 function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2.5);   // cap for tablet GPU fill-rate
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
   const box = document.getElementById('canvasBox');
   const rect = box.getBoundingClientRect();
   CW = rect.width; CH = rect.height;
   if (CW < 16 || CH < 16) {
-    // iOS first-paint sometimes reports 0-height flex children — force a floor and retry
     box.style.minHeight = '48vh';
     const r2 = box.getBoundingClientRect();
     CW = r2.width || window.innerWidth; CH = r2.height || Math.round(window.innerHeight * 0.5);
@@ -564,48 +764,55 @@ window.addEventListener('pageshow', resize);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 
 function fitRadius() {
-  // Fit to the ORBIT ENVELOPE (apoapsis), never the craft's current radius —
-  // tracking the craft makes the zoom breathe once per rev on elliptical orbits.
-  let rmax = R_EARTH * 1.3;
+  // Fit to the ORBIT ENVELOPE around the current primary — never the craft radius.
+  let rmax = primR() * 1.3;
   const el = currentElements();
   if (el.e < 1 && el.a > 0) rmax = Math.max(rmax, el.a * (1 + el.e) * 1.05);
-  else rmax = Math.max(rmax, vmag(currentState().r) * 1.15);   // unbound: follow the departure
+  else rmax = Math.max(rmax, vmag(currentState().r) * 1.15);
+  if (app.frame === 'moon') rmax = Math.max(rmax, soiRadius() * 1.12);
   const lesson = activeLesson();
-  if (lesson && lesson.target) rmax = Math.max(rmax, (R_EARTH + lesson.target.altKm) * 1.05);
-  if (app.node) {
-    const pv = nodePreviewElements();
-    if (pv && pv.e < 1 && pv.a > 0) rmax = Math.max(rmax, pv.a * (1 + pv.e) * 1.05);
+  if (app.frame === 'earth') {
+    if (lesson && lesson.target) rmax = Math.max(rmax, (R_EARTH + lesson.target.altKm) * 1.05);
+    const chain = planChain();
+    for (const pv of chain.orbits.slice(1)) {
+      if (pv.e < 1 && pv.a > 0) rmax = Math.max(rmax, pv.a * (1 + pv.e) * 1.05);
+    }
+    // if we're reaching for the Moon, keep the Moon's orbit in view
+    if (app.moonEnabled && rmax > 0.35 * moonDist()) rmax = Math.max(rmax, moonDist() * 1.12);
   }
-  return Math.min(rmax, ESCAPE_R * 1.3);   // zoom clamp
+  return Math.min(rmax, moonDist() * 2.2);
 }
 
-function w2s(p, scale) { return [CW / 2 + p[0] * scale, CH / 2 - p[1] * scale]; }
+function w2s(p, sc) {
+  return [CW / 2 + (p[0] - app.camCenter[0]) * sc, CH / 2 - (p[1] - app.camCenter[1]) * sc];
+}
 
-function sampleOrbit(el, n) {
+function sampleOrbit(el, n, mu) {
   const pts = [];
   if (el.e < 1 && el.a > 0) {
     for (let i = 0; i <= n; i++) {
       const nu = i / n * TWO_PI;
-      pts.push({ nu, p: stateFromElements({ ...el, nu }).r });
+      pts.push({ nu, p: stateFromElements({ ...el, nu }, mu).r });
     }
   } else {
     const nuInf = Math.acos(-1 / el.e);
     const lim = nuInf - 0.05;
     for (let i = 0; i <= n; i++) {
       const nu = -lim + i / n * 2 * lim;
-      const s = stateFromElements({ ...el, nu: normAngle(nu) });
-      if (vmag(s.r) < ESCAPE_R * 2) pts.push({ nu: normAngle(nu), p: s.r });
+      const s = stateFromElements({ ...el, nu: normAngle(nu) }, mu);
+      if (vmag(s.r) < moonDist() * 4) pts.push({ nu: normAngle(nu), p: s.r });
     }
   }
   return pts;
 }
 
-function drawOrbitPath(el, scale, color, dashed, width) {
-  const pts = sampleOrbit(el, 240);
+function drawOrbitPath(el, sc, color, dashed, width, mu, center) {
+  const pts = sampleOrbit(el, 240, mu);
   if (!pts.length) return;
+  const c = center || [0, 0];
   ctx.beginPath();
   pts.forEach((pt, i) => {
-    const [x, y] = w2s(pt.p, scale);
+    const [x, y] = w2s(vadd(pt.p, c), sc);
     i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
   });
   ctx.strokeStyle = color;
@@ -615,8 +822,8 @@ function drawOrbitPath(el, scale, color, dashed, width) {
   ctx.setLineDash([]);
 }
 
-function drawMarkerDot(pos, scale, color, label, labelText) {
-  const [x, y] = w2s(pos, scale);
+function drawMarkerDot(posAbs, sc, color, label, labelText) {
+  const [x, y] = w2s(posAbs, sc);
   ctx.beginPath(); ctx.arc(x, y, 4.5, 0, TWO_PI);
   ctx.fillStyle = color; ctx.fill();
   ctx.font = '11px -apple-system, sans-serif';
@@ -625,48 +832,74 @@ function drawMarkerDot(pos, scale, color, label, labelText) {
   if (labelText) ctx.fillText(labelText, x + 8, y + 7);
 }
 
+function drawBody(centerAbs, radiusKm, sc, colors, atmosphere) {
+  const [x, y] = w2s(centerAbs, sc);
+  const rp = Math.max(radiusKm * sc, 2);
+  if (atmosphere) {
+    const atmR = (radiusKm + 100) * sc;
+    const grad = ctx.createRadialGradient(x, y, rp, x, y, atmR + 8);
+    grad.addColorStop(0, 'rgba(93,180,255,0.35)');
+    grad.addColorStop(1, 'rgba(93,180,255,0)');
+    ctx.beginPath(); ctx.arc(x, y, atmR + 8, 0, TWO_PI); ctx.fillStyle = grad; ctx.fill();
+  }
+  const g = ctx.createRadialGradient(x - rp * 0.35, y - rp * 0.35, rp * 0.2, x, y, rp);
+  g.addColorStop(0, colors[0]); g.addColorStop(0.65, colors[1]); g.addColorStop(1, colors[2]);
+  ctx.beginPath(); ctx.arc(x, y, rp, 0, TWO_PI); ctx.fillStyle = g; ctx.fill();
+}
+
 function render() {
   ctx.clearRect(0, 0, CW, CH);
-  // stars
   drawStars();
+
+  // camera: center on primary, fit orbit envelope
   const targetScale = Math.min(CW, CH) * 0.46 / fitRadius();
   app.scale = app.scale == null ? targetScale : app.scale + (targetScale - app.scale) * 0.07;
+  const targetCenter = primPos();
+  app.camCenter = [app.camCenter[0] + (targetCenter[0] - app.camCenter[0]) * 0.08,
+                   app.camCenter[1] + (targetCenter[1] - app.camCenter[1]) * 0.08];
   const sc = app.scale;
 
-  // atmosphere ring + Earth
-  const [ex, ey] = w2s([0, 0], sc);
-  const atmR = (R_EARTH + 100) * sc;
-  const grad = ctx.createRadialGradient(ex, ey, R_EARTH * sc, ex, ey, atmR + 8);
-  grad.addColorStop(0, 'rgba(93,180,255,0.35)');
-  grad.addColorStop(1, 'rgba(93,180,255,0)');
-  ctx.beginPath(); ctx.arc(ex, ey, atmR + 8, 0, TWO_PI); ctx.fillStyle = grad; ctx.fill();
+  // Earth (always at origin)
+  drawBody([0, 0], R_EARTH, sc, ['#3d7bd6', '#1e4f9e', '#122c58'], true);
 
-  const eg = ctx.createRadialGradient(ex - R_EARTH * sc * 0.35, ey - R_EARTH * sc * 0.35, R_EARTH * sc * 0.2, ex, ey, R_EARTH * sc);
-  eg.addColorStop(0, '#3d7bd6'); eg.addColorStop(0.65, '#1e4f9e'); eg.addColorStop(1, '#122c58');
-  ctx.beginPath(); ctx.arc(ex, ey, R_EARTH * sc, 0, TWO_PI); ctx.fillStyle = eg; ctx.fill();
+  // Moon + its orbit + SOI
+  if (app.moonEnabled) {
+    ctx.beginPath();
+    const [ex0, ey0] = w2s([0, 0], sc);
+    ctx.arc(ex0, ey0, moonDist() * sc, 0, TWO_PI);
+    ctx.strokeStyle = 'rgba(201,196,184,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+    const mp = moonPos(app.simTime);
+    drawBody(mp, R_MOON, sc, ['#d8d4c8', '#a8a396', '#6e6a60']);
+    const [mx, my] = w2s(mp, sc);
+    ctx.beginPath(); ctx.arc(mx, my, soiRadius() * sc, 0, TWO_PI);
+    ctx.strokeStyle = 'rgba(201,196,184,0.45)'; ctx.lineWidth = 1.2;
+    ctx.setLineDash([5, 7]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(201,196,184,0.8)';
+    ctx.fillText('Moon', mx + 8, my - Math.max(R_MOON * sc, 2) - 6);
+  }
 
   const el = currentElements();
   const lesson = activeLesson();
+  const pc = primPos();
 
-  // target orbit
-  if (app.mode === 'lessons' && lesson && lesson.target) {
+  // lesson target orbit (earth frame)
+  if (app.mode === 'lessons' && lesson && lesson.target && app.frame === 'earth') {
     drawOrbitPath(elementsFromState({
       r: [R_EARTH + lesson.target.altKm, 0],
       v: [0, Math.sqrt(MU / (R_EARTH + lesson.target.altKm))],
-    }), sc, 'rgba(255,184,77,0.85)', true, 1.4);
+    }), sc, 'rgba(255,184,77,0.85)', true, 1.4, MU, [0, 0]);
   }
 
-  // lesson-3 markers — fixed INERTIAL angles (fixed places above Earth),
-  // drawn where the CURRENT ORBIT crosses that direction so they sit on the path.
-  // (True-anomaly markers would teleport when a burn rebases periapsis.)
+  // lesson-3 markers — fixed INERTIAL angles drawn where the current orbit crosses them
   if (app.mode === 'lessons' && lesson && lesson.markers && !app.lessonDone) {
     const mIdx = app.lessonStage;
     lesson.markers.forEach((ang, i) => {
       const nuAtAngle = normAngle(el.dir * (ang - el.omega));
-      const pos = stateFromElements({ ...el, nu: nuAtAngle }).r;
+      const pos = stateFromElements({ ...el, nu: nuAtAngle }, primMu()).r;
       const active = i === mIdx;
       const pulse = active ? (0.6 + 0.4 * Math.sin(performance.now() / 250)) : 0.35;
-      const [x, y] = w2s(pos, sc);
+      const [x, y] = w2s(vadd(pos, pc), sc);
       ctx.beginPath(); ctx.arc(x, y, active ? 9 : 7, 0, TWO_PI);
       ctx.strokeStyle = `rgba(255,184,77,${pulse})`; ctx.lineWidth = 2; ctx.stroke();
       ctx.font = 'bold 12px -apple-system, sans-serif';
@@ -675,13 +908,13 @@ function render() {
     });
   }
 
-  // current orbit + apsides
-  drawOrbitPath(el, sc, 'rgba(93,212,255,0.9)', false, 1.8);
+  // current orbit + apsides (relative to primary)
+  drawOrbitPath(el, sc, 'rgba(93,212,255,0.9)', false, 1.8, primMu(), pc);
 
-  // opposite-side ghost — THE teaching cue: while burning, show where the orbit changes
+  // opposite-side ghost while burning
   if (app.thrustSign !== 0 && !app.paused && !app.gameOver && el.e < 1 && el.a > 0) {
-    const opp = stateFromElements({ ...el, nu: normAngle(el.nu + Math.PI) }).r;
-    const [ox, oy] = w2s(opp, sc);
+    const opp = stateFromElements({ ...el, nu: normAngle(el.nu + Math.PI) }, primMu()).r;
+    const [ox, oy] = w2s(vadd(opp, pc), sc);
     const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 180);
     ctx.beginPath(); ctx.arc(ox, oy, 10 + 3 * pulse, 0, TWO_PI);
     ctx.strokeStyle = `rgba(255,184,77,${pulse})`; ctx.lineWidth = 2; ctx.stroke();
@@ -689,25 +922,46 @@ function render() {
     ctx.fillStyle = `rgba(255,184,77,${Math.max(pulse, 0.6)})`;
     ctx.fillText(app.thrustSign > 0 ? 'changes here ↑' : 'changes here ↓', ox + 16, oy + 4);
   }
+
   if (el.e > 1e-4 && el.e < 1 && el.a > 0) {
-    const apoP = stateFromElements({ ...el, nu: Math.PI }).r;
-    const periP = stateFromElements({ ...el, nu: 0 }).r;
-    drawMarkerDot(apoP, sc, '#ff8f6b', 'high point', fmtKm(el.a * (1 + el.e) - R_EARTH));
-    drawMarkerDot(periP, sc, '#6bffd4', 'low point', fmtKm(el.a * (1 - el.e) - R_EARTH));
+    const apoP = vadd(stateFromElements({ ...el, nu: Math.PI }, primMu()).r, pc);
+    const periP = vadd(stateFromElements({ ...el, nu: 0 }, primMu()).r, pc);
+    drawMarkerDot(apoP, sc, '#ff8f6b', 'high point', fmtKm(el.a * (1 + el.e) - primR()));
+    drawMarkerDot(periP, sc, '#6bffd4', 'low point', fmtKm(el.a * (1 - el.e) - primR()));
+  } else if (el.e >= 1) {
+    const periP = vadd(stateFromElements({ ...el, nu: 0 }, primMu()).r, pc);
+    drawMarkerDot(periP, sc, '#6bffd4', 'low point', fmtKm(el.a * (1 - el.e) - primR()));
   }
 
-  // planned node + preview
-  if (app.node) {
-    const npos = stateFromElements({ ...el, nu: app.node.nu }).r;
+  // flight plan: chained previews + numbered nodes
+  const chain = planChain();
+  chain.orbits.slice(1).forEach((pv, k) => {
+    const alpha = 0.85 - k * 0.18;
+    drawOrbitPath(pv, sc, `rgba(157,255,112,${Math.max(alpha, 0.3)})`, true, 1.5, primMu(), pc);
+  });
+  app.plan.forEach((node, k) => {
+    const onOrbit = chain.orbits[k];
+    const npos = vadd(stateFromElements({ ...onOrbit, nu: node.nu }, primMu()).r, pc);
     const [nx, ny] = w2s(npos, sc);
-    ctx.beginPath(); ctx.arc(nx, ny, 7, 0, TWO_PI);
-    ctx.strokeStyle = '#9dff70'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(nx, ny, 2.5, 0, TWO_PI); ctx.fillStyle = '#9dff70'; ctx.fill();
-    const pv = nodePreviewElements();
-    if (pv && app.node.dv !== 0) drawOrbitPath(pv, sc, 'rgba(157,255,112,0.8)', true, 1.5);
+    const seld = k === app.planSel;
+    ctx.beginPath(); ctx.arc(nx, ny, seld ? 8 : 6.5, 0, TWO_PI);
+    ctx.strokeStyle = '#9dff70'; ctx.lineWidth = seld ? 2.5 : 1.5; ctx.stroke();
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.fillStyle = '#9dff70';
+    ctx.fillText(String(k + 1), nx - 3, ny + 4);
+  });
+
+  // ghost Moon at arrival
+  const ghost = ghostMoonAtArrival(chain);
+  if (ghost) {
+    drawBody(ghost.pos, R_MOON, sc, ['rgba(216,212,200,0.4)', 'rgba(168,163,150,0.3)', 'rgba(110,106,96,0.25)']);
+    const [gx, gy] = w2s(ghost.pos, sc);
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(201,196,184,0.75)';
+    ctx.fillText('Moon when you arrive', gx + 8, gy + Math.max(R_MOON * sc, 2) + 14);
   }
 
-  // trail
+  // trail (absolute)
   if (app.trail.length > 1) {
     ctx.beginPath();
     app.trail.forEach((p, i) => {
@@ -718,25 +972,30 @@ function render() {
   }
 
   // ship
-  const s = currentState();
-  const [sx, sy] = w2s(s.r, sc);
-  const vAng = Math.atan2(-s.v[1], s.v[0]);
+  const abs = shipAbs();
+  const rel = currentState();
+  const [sx, sy] = w2s(abs.r, sc);
+  const vAng = Math.atan2(-rel.v[1], rel.v[0]);
   ctx.save();
   ctx.translate(sx, sy); ctx.rotate(vAng);
-  // flame when thrusting
   if (app.thrustSign !== 0 && !app.paused && !app.gameOver) {
-    ctx.beginPath();
+    // flame opposite the true thrust direction (steer included)
+    const axis = app.thrustSign > 0 ? 0 : Math.PI;
+    const thrustLocal = axis - app.steerDeg * Math.PI / 180;  // screen-local (y down)
     const f = 8 + Math.random() * 5;
-    if (app.thrustSign > 0) { ctx.moveTo(-6, 0); ctx.lineTo(-6 - f, 3); ctx.lineTo(-6 - f, -3); }
-    else { ctx.moveTo(6, 0); ctx.lineTo(6 + f, 3); ctx.lineTo(6 + f, -3); }
+    ctx.save();
+    ctx.rotate(thrustLocal + Math.PI);
+    ctx.beginPath();
+    ctx.moveTo(6, 0); ctx.lineTo(6 + f, 3); ctx.lineTo(6 + f, -3);
     ctx.closePath(); ctx.fillStyle = '#ffb84d'; ctx.fill();
+    ctx.restore();
   }
   ctx.beginPath();
   ctx.moveTo(7, 0); ctx.lineTo(-5, 4.5); ctx.lineTo(-3, 0); ctx.lineTo(-5, -4.5);
   ctx.closePath(); ctx.fillStyle = '#ffffff'; ctx.fill();
   ctx.restore();
 
-  // scale bar (bottom-left): nearest 1/2/5×10ⁿ km that fits ~22% of the width
+  // scale bar
   const targetKm = CW * 0.22 / sc;
   const pow = Math.pow(10, Math.floor(Math.log10(targetKm)));
   const niceKm = [5, 2, 1].map(m => m * pow).find(v => v <= targetKm) || pow;
@@ -755,7 +1014,6 @@ function render() {
 let stars = null;
 function drawStars() {
   if (!stars || stars.w !== CW || stars.h !== CH) {
-    // seeded PRNG so the starfield is stable across resizes (no reshuffle flicker)
     let seed = 0x9e3779b9;
     const rnd = () => {
       seed = (seed + 0x6d2b79f5) | 0;
@@ -782,70 +1040,137 @@ function fmtPeriod(sec) {
   if (!isFinite(sec) || sec <= 0) return '–';
   const m = sec / 60;
   if (m < 200) return m.toFixed(1) + ' min';
-  return (m / 60).toFixed(1) + ' hr';
+  if (m < 60 * 48) return (m / 60).toFixed(1) + ' hr';
+  return (m / 1440).toFixed(1) + ' days';
 }
 
-/* ============================== node planning ============================== */
-function nodePreviewElements() {
-  if (!app.node) return null;
-  const el = currentElements();
-  const s = stateFromElements({ ...el, nu: app.node.nu });
-  const vm = vmag(s.v);
-  const dvKms = app.node.dv / 1000;
-  const v2 = [s.v[0] + s.v[0] / vm * dvKms, s.v[1] + s.v[1] / vm * dvKms];
-  return elementsFromState({ r: s.r, v: v2 });
+/* ============================== flight plan ============================== */
+// Chain the plan: orbits[0] = current orbit; orbits[k+1] = orbit after node k.
+function planChain() {
+  const mu = primMu();
+  const orbits = [currentElements()];
+  for (const node of app.plan) {
+    const base = orbits[orbits.length - 1];
+    const s = stateFromElements({ ...base, nu: node.nu }, mu);
+    const vm = vmag(s.v) || 1e-9;
+    const uhat = vrot([s.v[0] / vm, s.v[1] / vm], node.angDeg * Math.PI / 180);
+    const dvKms = node.dv / 1000;
+    orbits.push(elementsFromState({ r: s.r, v: [s.v[0] + uhat[0] * dvKms, s.v[1] + uhat[1] * dvKms] }, mu));
+  }
+  return { orbits };
 }
 
-function updateNodeUI() {
+// If the final planned (or current) earth orbit reaches Moon altitude, when & where
+// will the Moon be at our arrival (apoapsis)?
+function ghostMoonAtArrival(chain) {
+  if (!app.moonEnabled || app.frame !== 'earth') return null;
+  const mu = MU;
+  const orbits = chain.orbits;
+  const finalEl = orbits[orbits.length - 1];
+  if (!(finalEl.e < 1 && finalEl.a > 0)) return null;
+  if (finalEl.a * (1 + finalEl.e) < 0.8 * moonDist()) return null;
+  // total time: to node1 on orbit0, node2 on orbit1 (from node1's nu), … then to apoapsis
+  let t = 0;
+  for (let k = 0; k < app.plan.length; k++) {
+    const from = k === 0 ? orbits[0] : { ...orbits[k], nu: app.plan[k - 1].nu };
+    const leg = timeToNu(from, app.plan[k].nu, mu);
+    if (!isFinite(leg)) return null;
+    t += leg;
+  }
+  const lastStart = app.plan.length ? { ...finalEl, nu: app.plan[app.plan.length - 1].nu } : finalEl;
+  const legApo = timeToNu(lastStart, Math.PI, mu);
+  if (!isFinite(legApo)) return null;
+  t += legApo;
+  return { pos: moonPos(app.simTime + t), t };
+}
+
+function updatePlanUI() {
   const nc = document.getElementById('nodeControls');
-  const prev = document.getElementById('nodePreview');
+  const prev = document.getElementById('planPreview');
   const hint = document.getElementById('planHint');
   const btnPlan = document.getElementById('btnPlan');
+  const list = document.getElementById('planList');
   document.getElementById('canvasBox').classList.toggle('placing', app.placingNode);
+
+  // plan list rows
+  list.innerHTML = '';
+  list.style.display = app.plan.length ? 'flex' : 'none';
+  app.plan.forEach((node, k) => {
+    const row = document.createElement('div');
+    row.className = 'planRow' + (k === app.planSel ? ' sel' : '');
+    row.innerHTML = `<span class="num">${k + 1}</span><span class="desc">${node.dv > 0 ? '+' : ''}${node.dv} m/s @ ${node.angDeg}°</span>`;
+    const del = document.createElement('button');
+    del.className = 'del'; del.textContent = '✕'; del.title = 'Remove this burn';
+    del.onclick = (ev) => { ev.stopPropagation(); app.plan.splice(k, 1); app.planSel = Math.min(app.planSel, app.plan.length - 1); updatePlanUI(); };
+    row.appendChild(del);
+    row.onclick = () => { app.planSel = k; syncNodeSliders(); updatePlanUI(); };
+    list.appendChild(row);
+  });
+
   if (app.placingNode) {
-    hint.textContent = 'Now click a spot on your orbit line…';
+    hint.textContent = 'Now click a spot on the orbit line (the newest dashed one if you have a plan)…';
     btnPlan.textContent = '✕ Never mind';
     nc.style.display = 'none';
-  } else if (app.node) {
-    hint.textContent = 'Drag the slider, watch the dashed preview, then execute.';
-    btnPlan.textContent = '＋ Move the maneuver point';
+  } else if (app.plan.length) {
+    hint.textContent = 'Select a burn to edit it. Add more, then execute the whole plan.';
+    btnPlan.textContent = '＋ Add another burn';
     nc.style.display = 'block';
-    document.getElementById('nodeDvVal').textContent = `${app.node.dv > 0 ? '+' : ''}${app.node.dv} m/s`;
-    const pv = nodePreviewElements();
-    if (pv && app.node.dv !== 0) {
-      if (pv.e >= 1 || pv.a <= 0) {
-        prev.style.display = 'block';
-        prev.textContent = 'Predicted: escape trajectory! (you would leave Earth orbit)';
-      } else {
-        prev.style.display = 'block';
-        prev.textContent = `Predicted orbit → high: ${fmtKm(pv.a * (1 + pv.e) - R_EARTH)}, low: ${fmtKm(pv.a * (1 - pv.e) - R_EARTH)}`;
-      }
-    } else prev.style.display = 'none';
+    const node = app.plan[app.planSel];
+    if (node) {
+      document.getElementById('nodeDvVal').textContent = `${node.dv > 0 ? '+' : ''}${node.dv} m/s`;
+      document.getElementById('nodeAngVal').textContent = `${node.angDeg}°`;
+    }
+    const chain = planChain();
+    const fin = chain.orbits[chain.orbits.length - 1];
+    if (fin.e >= 1 || fin.a <= 0) {
+      prev.style.display = 'block';
+      prev.textContent = 'Predicted: escape trajectory! (you would leave orbit)';
+    } else {
+      prev.style.display = 'block';
+      prev.textContent = `Plan result → high: ${fmtKm(fin.a * (1 + fin.e) - primR())}, low: ${fmtKm(fin.a * (1 - fin.e) - primR())}`;
+    }
   } else {
     hint.textContent = 'Click the button, then click a spot on your orbit.';
-    btnPlan.textContent = '＋ Place a maneuver point';
+    btnPlan.textContent = '＋ Add a maneuver point';
     nc.style.display = 'none';
+    prev.style.display = 'none';
   }
+}
+
+function syncNodeSliders() {
+  const node = app.plan[app.planSel];
+  if (!node) return;
+  document.getElementById('nodeDv').value = node.dv;
+  document.getElementById('nodeAng').value = node.angDeg;
+}
+
+function addPlanNode(nu) {
+  app.plan.push({ nu, dv: 0, angDeg: 0 });
+  app.planSel = app.plan.length - 1;
+  syncNodeSliders();
+  if (!app.paused) { app.paused = true; syncPauseUI(); }
+  updatePlanUI();
 }
 
 cv.addEventListener('click', (ev) => {
   if (!app.placingNode) return;
   const rect = cv.getBoundingClientRect();
   const px = ev.clientX - rect.left, py = ev.clientY - rect.top;
-  const wx = (px - CW / 2) / app.scale, wy = -(py - CH / 2) / app.scale;
-  const el = currentElements();
-  if (el.e >= 1 || el.a <= 0) return;
-  const pts = sampleOrbit(el, 240);
+  const wx = app.camCenter[0] + (px - CW / 2) / app.scale;
+  const wy = app.camCenter[1] - (py - CH / 2) / app.scale;
+  const chain = planChain();
+  const base = chain.orbits[chain.orbits.length - 1];
+  const pc = primPos();
+  const pts = sampleOrbit(base, 240, primMu());
   let best = null, bestD = Infinity;
   for (const pt of pts) {
-    const d = Math.hypot(pt.p[0] - wx, pt.p[1] - wy);
+    const abs = vadd(pt.p, pc);
+    const d = Math.hypot(abs[0] - wx, abs[1] - wy);
     if (d < bestD) { bestD = d; best = pt; }
   }
-  if (best && bestD * app.scale < 60) {   // within 60 px of the orbit line
-    app.node = { nu: best.nu, dv: 0 };
-    document.getElementById('nodeDv').value = 0;
+  if (best && bestD * app.scale < 60) {
     app.placingNode = false;
-    updateNodeUI();
+    addPlanNode(best.nu);
   }
 });
 
@@ -856,9 +1181,45 @@ function frame(now) {
   const realDt = Math.min((now - lastT) / 1000, 0.05);
   lastT = now;
   if (!app.paused && !app.gameOver) step(realDt);
+  if (bannerTimer > 0) {
+    bannerTimer -= realDt;
+    if (bannerTimer <= 0) document.getElementById('banner').style.display = 'none';
+  }
   render();
   updateReadouts();
   requestAnimationFrame(frame);
+}
+
+// Advance a coast by dt with SOI handoff detection (substepped when needed).
+function coastAdvance(dt) {
+  const mu = primMu();
+  const needSOI = app.moonEnabled;
+  let subs = 1;
+  if (needSOI) {
+    const el = app.el;
+    if (app.frame === 'moon') subs = 8;
+    else if (el.e >= 1 || el.a <= 0 || el.a * (1 + el.e) > 0.5 * moonDist()) subs = 24;
+  }
+  const sub = dt / subs;
+  for (let i = 0; i < subs; i++) {
+    app.el = propagateKepler(app.el, sub, mu);
+    app.simTime += sub;
+    if (!needSOI) continue;
+    if (app.frame === 'earth') {
+      const abs = stateFromElements(app.el, MU).r;
+      const mp = moonPos(app.simTime);
+      if (Math.hypot(abs[0] - mp[0], abs[1] - mp[1]) < soiRadius()) {
+        switchFrame('moon', "🌙 You've entered the Moon's sphere of influence — its gravity owns you now!");
+        return;
+      }
+    } else {
+      const rm = vmag(stateFromElements(app.el, MU_MOON).r);
+      if (rm > soiRadius()) {
+        switchFrame('earth', "You've left the Moon's sphere of influence — back to Earth's gravity. (That was a slingshot!)");
+        return;
+      }
+    }
+  }
 }
 
 function step(realDt) {
@@ -866,101 +1227,121 @@ function step(realDt) {
   const thrusting = app.thrustSign !== 0;
   if (thrusting) warp = Math.min(warp, BURN_WARP_CAP);
   let simDt = realDt * warp;
-  app.simTime += simDt;
 
-  if (thrusting && app.execNode) {
-    // hand-flying overrides a planned execute — cancel it cleanly (node stays placed)
-    app.execNode = false;
+  if (thrusting && app.execIdx >= 0) {
+    // pilot override: cancel the remaining plan
+    app.execIdx = -1;
+    app.plan = []; app.planSel = -1;
     if (app.savedWarpIdx != null) { app.warpIdx = app.savedWarpIdx; app.savedWarpIdx = null; syncWarpUI(); }
+    flashBanner('Plan cancelled — you have the controls.', 3);
+    updatePlanUI();
   }
+
   if (thrusting) {
-    if (app.coasting) { app.state = stateFromElements(app.el); app.coasting = false; }
+    if (app.coasting) { app.state = stateFromElements(app.el, primMu()); app.coasting = false; }
     const sign = app.thrustSign;
+    const steerRad = app.steerDeg * Math.PI / 180;
+    const mu = primMu();
     const thrustFn = (r, v) => {
       const vm = vmag(v) || 1e-9;
-      return [sign * THRUST_ACCEL * v[0] / vm, sign * THRUST_ACCEL * v[1] / vm];
+      const axis = sign > 0 ? 0 : Math.PI;
+      const u = vrot([v[0] / vm, v[1] / vm], axis + steerRad);
+      return [THRUST_ACCEL * u[0], THRUST_ACCEL * u[1]];
     };
     let remaining = simDt;
     while (remaining > 1e-9) {
       const dt = Math.min(0.25, remaining);
-      app.state = rk4Step(app.state, dt, thrustFn);
+      app.state = rk4Step(app.state, dt, thrustFn, mu);
+      app.simTime += dt;
       app.dvSpent += THRUST_ACCEL * dt * 1000;
       trackStageDv(THRUST_ACCEL * dt * 1000);
       remaining -= dt;
     }
-    app.trail.push(app.state.r.slice());
+    app.trail.push(shipAbs().r);
   } else {
-    // settle back to analytic coasting when possible
     if (!app.coasting) {
-      const el = elementsFromState(app.state);
-      if (el.e < 0.995 && el.a > 0) { app.el = el; app.coasting = true; }
+      app.el = elementsFromState(app.state, primMu());
+      app.coasting = true;
     }
-    if (app.coasting) {
-      // executing a planned burn: consume coast time until the node
-      if (app.execNode && app.node) {
-        if (simDt >= app.execTimeLeft) {
-          app.el = propagateKepler(app.el, app.execTimeLeft);
-          applyNodeBurn();
-          simDt -= app.execTimeLeft;
-          if (app.coasting && simDt > 0) app.el = propagateKepler(app.el, simDt);
-        } else {
-          app.execTimeLeft -= simDt;
-          app.el = propagateKepler(app.el, simDt);
-        }
+    if (app.execIdx >= 0 && app.plan[app.execIdx]) {
+      if (simDt >= app.execTimeLeft) {
+        coastAdvance(app.execTimeLeft);
+        const leftover = simDt - app.execTimeLeft;
+        if (app.execIdx >= 0) applyPlanNode();      // may have been cancelled by SOI switch
+        if (app.coasting && leftover > 0) coastAdvance(leftover);
       } else {
-        app.el = propagateKepler(app.el, simDt);
+        app.execTimeLeft -= simDt;
+        coastAdvance(simDt);
       }
-      app.trail.push(stateFromElements(app.el).r.slice());
     } else {
-      // hyperbolic / near-parabolic: numeric coast
-      let remaining = Math.min(simDt, 2000);
-      while (remaining > 1e-9) {
-        const dt = Math.min(2, remaining);
-        app.state = rk4Step(app.state, dt, null);
-        remaining -= dt;
-      }
-      app.trail.push(app.state.r.slice());
+      coastAdvance(simDt);
     }
+    app.trail.push(shipAbs().r);
   }
   if (app.trail.length > 500) app.trail.splice(0, app.trail.length - 500);
 
-  // ---- hazards ----
+  // ---- hazards & banners ----
   const s = currentState();
   const rm = vmag(s.r);
   const el = currentElements();
   const banner = document.getElementById('banner');
-  if (el.e >= 1 || el.a <= 0) {
-    banner.style.display = 'block';
-    banner.textContent = '🚀 Escape trajectory — you are leaving Earth orbit!';
-  } else if (el.a * (1 - el.e) < R_EARTH + REENTRY_ALT) {
-    banner.style.display = 'block';
-    banner.textContent = '🔥 Your low point is inside the atmosphere — re-entry ahead!';
-  } else banner.style.display = 'none';
+  if (bannerTimer <= 0) {
+    if (app.frame === 'earth' && (el.e >= 1 || el.a <= 0)) {
+      banner.style.display = 'block';
+      banner.textContent = '🚀 Escape trajectory — you are leaving Earth orbit!';
+    } else if (app.frame === 'earth' && el.a * (1 - el.e) < R_EARTH + REENTRY_ALT) {
+      banner.style.display = 'block';
+      banner.textContent = '🔥 Your low point is inside the atmosphere — re-entry ahead!';
+    } else banner.style.display = 'none';
+  }
 
-  // keep frames small enough to catch re-entry when the orbit dips low
-  if (el.e < 1 && el.a > 0 && el.a * (1 - el.e) < R_EARTH + REENTRY_ALT + 50 && app.warpIdx > 3) {
+  // keep frames small enough to catch surface contact when dipping low
+  if (el.e < 1 && el.a > 0 && el.a * (1 - el.e) < primR() + (app.frame === 'earth' ? REENTRY_ALT + 50 : 80) && app.warpIdx > 3) {
     app.warpIdx = 3; syncWarpUI();
   }
 
-  if (rm < R_EARTH + REENTRY_ALT) return doReentry();
-  if (rm > ESCAPE_R) return doEscape();
+  if (app.frame === 'earth') {
+    if (rm < R_EARTH + REENTRY_ALT) return doReentry();
+    if (rm > escapeLimit() && (el.e >= 1 || el.a <= 0)) return doEscape();
+  } else {
+    if (rm < R_MOON + MOON_CRASH_ALT) return doMoonCrash();
+  }
 
-  // ---- lesson success ----
   checkLesson();
 }
 
-function applyNodeBurn() {
-  const s = stateFromElements({ ...app.el, nu: app.node.nu });
-  const vm = vmag(s.v);
-  const dvKms = app.node.dv / 1000;
-  const v2 = [s.v[0] + s.v[0] / vm * dvKms, s.v[1] + s.v[1] / vm * dvKms];
-  app.dvSpent += Math.abs(app.node.dv);
-  const el = elementsFromState({ r: s.r, v: v2 });
-  app.node = null; app.execNode = false;
-  if (app.savedWarpIdx != null) { app.warpIdx = app.savedWarpIdx; app.savedWarpIdx = null; syncWarpUI(); }
-  if (el.e < 0.995 && el.a > 0) { app.el = el; app.coasting = true; }
-  else { app.state = { r: s.r, v: v2 }; app.coasting = false; }
-  updateNodeUI();
+function applyPlanNode() {
+  const node = app.plan[app.execIdx];
+  if (!node) { app.execIdx = -1; return; }
+  const mu = primMu();
+  const s = stateFromElements({ ...app.el, nu: node.nu }, mu);
+  const vm = vmag(s.v) || 1e-9;
+  const uhat = vrot([s.v[0] / vm, s.v[1] / vm], node.angDeg * Math.PI / 180);
+  const dvKms = node.dv / 1000;
+  const v2 = [s.v[0] + uhat[0] * dvKms, s.v[1] + uhat[1] * dvKms];
+  app.dvSpent += Math.abs(node.dv);
+  app.el = elementsFromState({ r: s.r, v: v2 }, mu);
+  app.coasting = true;
+  // advance to the next node or finish
+  app.plan.splice(app.execIdx, 1);
+  if (app.planSel >= app.plan.length) app.planSel = app.plan.length - 1;
+  if (app.plan.length && app.execIdx < app.plan.length + 1) {
+    app.execIdx = 0;
+    const t = timeToNu(app.el, app.plan[0].nu, mu);
+    if (isFinite(t)) { app.execTimeLeft = t; setAutoWarp(t); }
+    else { app.execIdx = -1; flashBanner('Next planned burn is unreachable — plan stopped.', 4); }
+  } else {
+    app.execIdx = -1;
+    if (app.savedWarpIdx != null) { app.warpIdx = app.savedWarpIdx; app.savedWarpIdx = null; syncWarpUI(); }
+  }
+  updatePlanUI();
+}
+
+function setAutoWarp(t) {
+  const wanted = t / 4;
+  let idx = 0;
+  for (let i = 0; i < WARPS.length; i++) if (WARPS[i] <= wanted) idx = i;
+  app.warpIdx = Math.max(idx, 1); syncWarpUI();
 }
 
 /* ============================== hazards ============================== */
@@ -986,19 +1367,31 @@ function doEscape() {
     [[ '↺ Back to orbit', () => { app.gameOver = false; hideOverlay(); restartCurrent(); } ]],
     true);
 }
+function doMoonCrash() {
+  app.gameOver = true;
+  showOverlay('💥 You hit the Moon!',
+    `<p>The Moon has <b>no atmosphere</b> — nothing slows you down for free here. Every
+     bit of braking must come from your engine, which is why lunar landings are so hard.</p>
+     <p>Try keeping your low point above the surface, or brake earlier.</p>`,
+    [[ '↺ Try again', () => { app.gameOver = false; hideOverlay(); restartCurrent(); } ]],
+    true);
+}
 
 /* ============================== lessons engine ============================== */
 function activeLesson() { return app.mode === 'lessons' ? LESSONS[app.lessonIdx] : null; }
 
 function trackStageDv(dvMs) {
   const lesson = activeLesson();
-  if (!lesson || !lesson.staged || app.lessonDone) return;
-  const markerAng = lesson.markers[app.lessonStage];
-  // score by INERTIAL position angle — the marker is a fixed place above Earth
-  const s = currentState();
-  let d = Math.abs(normAngle(Math.atan2(s.r[1], s.r[0]) - markerAng));
-  if (d > Math.PI) d = TWO_PI - d;
-  if (d < Math.PI / 7) app.stageDv += dvMs;   // within ~25°
+  if (!lesson || app.lessonDone) return;
+  if (lesson.staged) {
+    const markerAng = lesson.markers[app.lessonStage];
+    const s = currentState();
+    let d = Math.abs(normAngle(Math.atan2(s.r[1], s.r[0]) - markerAng));
+    if (d > Math.PI) d = TWO_PI - d;
+    if (d < Math.PI / 7) app.stageDv += dvMs;
+  } else if (lesson.steered) {
+    if (Math.abs(app.steerDeg) >= 60) app.stageDv += dvMs;
+  }
 }
 
 function updateCoach() {
@@ -1008,6 +1401,9 @@ function updateCoach() {
     coach.style.display = 'block';
     const label = app.lessonStage === 0 ? 'Ⓐ' : 'Ⓑ';
     coach.textContent = `Burned near ${label}: ${Math.min(40, Math.round(app.stageDv))} / 40 m/s`;
+  } else if (lesson && lesson.steered && !app.lessonDone) {
+    coach.style.display = 'block';
+    coach.textContent = `Steered burn (≥60°): ${Math.min(40, Math.round(app.stageDv))} / 40 m/s`;
   } else coach.style.display = 'none';
 }
 
@@ -1026,8 +1422,21 @@ function checkLesson() {
         completeLesson();
       }
     }
+  } else if (lesson.steered) {
+    if (app.stageDv >= 40) completeLesson();
   } else if (lesson.check && lesson.check()) {
     completeLesson();
+  }
+  // lesson 8 failure path: slung back out of the SOI
+  if (app.mode === 'lessons' && app.lessonIdx === 7 && !app.lessonDone && app.frame === 'earth' && app.simTime > 60) {
+    app.gameOver = true;
+    showOverlay('🌀 The Moon flung you back!',
+      `<p>You flew past without braking enough, so the Moon's gravity slingshotted you
+       back toward Earth — a free ride real missions sometimes use on purpose!</p>
+       <p>To get <b>captured</b>, brake harder (▼ Retrograde) while you're near your
+       closest approach.</p>`,
+      [[ '↺ Try the approach again', () => { app.gameOver = false; hideOverlay(); restartCurrent(); } ]],
+      true);
   }
 }
 
@@ -1047,14 +1456,20 @@ function loadLesson(i) {
   const lesson = LESSONS[app.lessonIdx];
   app.lessonDone = false; app.lessonStage = 0; app.stageDv = 0;
   app.thrustSign = 0; app.gameOver = false;
+  app.steerDeg = 0; syncSteerUI();
+  app.moonEnabled = !!lesson.moon;
   lesson.init();
-  app.scale = null;
+  app.scale = null; app.camCenter = primPos().slice();
   renderLessonCard();
 }
 
 function restartCurrent() {
   if (app.mode === 'lessons') loadLesson(app.lessonIdx);
-  else { setOrbitCircular(500); app.scale = null; }
+  else {
+    app.moonEnabled = document.getElementById('moonOn').checked;
+    setOrbitCircular(500);
+    app.scale = null; app.camCenter = [0, 0];
+  }
 }
 
 function renderLessonCard() {
@@ -1081,10 +1496,16 @@ function applyControlPolicy() {
   const planned = app.mode === 'sandbox' || (lesson && lesson.plannedAllowed);
   document.getElementById('btnPro').disabled = !burns;
   document.getElementById('btnRetro').disabled = !burns;
+  document.getElementById('steer').disabled = !burns;
   document.getElementById('burnBox').style.opacity = burns ? 1 : 0.45;
   document.getElementById('plannedBox').style.display = planned ? 'block' : 'none';
   document.getElementById('sandboxBox').style.display = app.mode === 'sandbox' ? 'block' : 'none';
   document.getElementById('lessonCard').style.display = app.mode === 'lessons' ? 'block' : 'none';
+  const moonCard = document.getElementById('moonBox');
+  const showMoonCard = app.mode === 'sandbox' || (lesson && lesson.moon);
+  moonCard.style.display = showMoonCard ? 'block' : 'none';
+  document.getElementById('moonOnRow').style.display = app.mode === 'sandbox' ? 'flex' : 'none';
+  document.getElementById('frameChip').textContent = app.frame === 'moon' ? ' · orbiting the MOON' : '';
 }
 
 /* ============================== overlay ============================== */
@@ -1114,18 +1535,19 @@ function updateReadouts() {
   const s = currentState();
   const el = currentElements();
   const rm = vmag(s.r);
-  document.getElementById('roAlt').textContent = fmtKm(rm - R_EARTH);
+  document.getElementById('roAlt').textContent = fmtKm(rm - primR());
   document.getElementById('roSpd').textContent = vmag(s.v).toFixed(2) + ' km/s';
   if (el.e < 1 && el.a > 0) {
-    document.getElementById('roApo').textContent = fmtKm(el.a * (1 + el.e) - R_EARTH);
-    document.getElementById('roPeri').textContent = fmtKm(el.a * (1 - el.e) - R_EARTH);
-    document.getElementById('roPeriod').textContent = fmtPeriod(orbitalPeriod(el.a));
+    document.getElementById('roApo').textContent = fmtKm(el.a * (1 + el.e) - primR());
+    document.getElementById('roPeri').textContent = fmtKm(el.a * (1 - el.e) - primR());
+    document.getElementById('roPeriod').textContent = fmtPeriod(orbitalPeriod(el.a, primMu()));
   } else {
     document.getElementById('roApo').textContent = '∞ (escaping)';
-    document.getElementById('roPeri').textContent = fmtKm(el.a * (1 - el.e) - R_EARTH);
+    document.getElementById('roPeri').textContent = fmtKm(el.a * (1 - el.e) - primR());
     document.getElementById('roPeriod').textContent = '–';
   }
   document.getElementById('roDv').textContent = Math.round(app.dvSpent) + ' m/s';
+  document.getElementById('frameChip').textContent = app.frame === 'moon' ? ' · orbiting the MOON' : '';
   updateCoach();
 }
 
@@ -1136,6 +1558,10 @@ function syncWarpUI() {
 function syncPauseUI() {
   document.getElementById('btnPause').textContent = app.paused ? '▶ Resume' : '⏸ Pause';
 }
+function syncSteerUI() {
+  document.getElementById('steer').value = app.steerDeg;
+  document.getElementById('steerVal').textContent = app.steerDeg + '°';
+}
 
 document.getElementById('warp').addEventListener('input', (e) => {
   app.warpIdx = +e.target.value; syncWarpUI();
@@ -1143,6 +1569,9 @@ document.getElementById('warp').addEventListener('input', (e) => {
 document.getElementById('btnPause').addEventListener('click', () => {
   if (document.getElementById('overlay').style.display === 'flex') return;
   app.paused = !app.paused; syncPauseUI();
+});
+document.getElementById('steer').addEventListener('input', (e) => {
+  app.steerDeg = +e.target.value; syncSteerUI();
 });
 
 function bindHold(id, sign) {
@@ -1161,7 +1590,6 @@ function bindHold(id, sign) {
   b.addEventListener('pointerdown', on);
   b.addEventListener('pointerup', off);
   b.addEventListener('pointercancel', off);
-  // no pointerleave cancel — capture keeps the burn while the finger drifts off the button
 }
 bindHold('btnPro', 1);
 bindHold('btnRetro', -1);
@@ -1174,7 +1602,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === '[') { app.warpIdx = Math.max(0, app.warpIdx - 1); syncWarpUI(); }
   if (e.key === ']') { app.warpIdx = Math.min(WARPS.length - 1, app.warpIdx + 1); syncWarpUI(); }
   if (e.key === 'r' || e.key === 'R') { if (!app.gameOver && document.getElementById('overlay').style.display !== 'flex') restartCurrent(); }
-  if (e.key === 'x' || e.key === 'X') { app.node = null; app.execNode = false; updateNodeUI(); }
+  if (e.key === 'x' || e.key === 'X') { app.plan = []; app.planSel = -1; app.execIdx = -1; updatePlanUI(); }
   if (e.key === 'p' || e.key === 'P') snapNode(0);
   if (e.key === 'a' || e.key === 'A') snapNode(Math.PI);
 });
@@ -1189,38 +1617,39 @@ document.getElementById('btnPlan').addEventListener('click', () => {
     app.placingNode = true;
     if (!app.paused) { app.paused = true; syncPauseUI(); }
   }
-  updateNodeUI();
+  updatePlanUI();
 });
 document.getElementById('nodeDv').addEventListener('input', (e) => {
-  if (app.node) { app.node.dv = +e.target.value; updateNodeUI(); }
+  const node = app.plan[app.planSel];
+  if (node) { node.dv = +e.target.value; updatePlanUI(); }
+});
+document.getElementById('nodeAng').addEventListener('input', (e) => {
+  const node = app.plan[app.planSel];
+  if (node) { node.angDeg = +e.target.value; updatePlanUI(); }
 });
 document.getElementById('btnExec').addEventListener('click', () => {
-  if (!app.node || app.node.dv === 0) return;
-  const el = currentElements();
-  if (el.e >= 1 || el.a <= 0) return;
-  app.execTimeLeft = timeToNu(el, app.node.nu);
-  app.execNode = true;
-  // auto-warp so the coast to the node takes ~4 real seconds
-  app.savedWarpIdx = app.warpIdx;
-  const wanted = app.execTimeLeft / 4;
-  let idx = 0;
-  for (let i = 0; i < WARPS.length; i++) if (WARPS[i] <= wanted) idx = i;
-  app.warpIdx = Math.max(idx, 1); syncWarpUI();
+  if (!app.plan.length) return;
+  if (app.plan.every(n => n.dv === 0)) return;
+  const t = timeToNu(currentElements(), app.plan[0].nu, primMu());
+  if (!isFinite(t)) { flashBanner('That first burn point is behind you — it can never be reached on this path.', 4); return; }
+  app.execIdx = 0;
+  app.execTimeLeft = t;
+  app.savedWarpIdx = app.savedWarpIdx == null ? app.warpIdx : app.savedWarpIdx;
+  setAutoWarp(t);
   app.paused = false; syncPauseUI();
-  updateNodeUI();
+  updatePlanUI();
 });
-document.getElementById('btnClearNode').addEventListener('click', () => {
-  app.node = null; app.execNode = false; updateNodeUI();
+document.getElementById('btnClearPlan').addEventListener('click', () => {
+  app.plan = []; app.planSel = -1; app.execIdx = -1; updatePlanUI();
 });
 
 function snapNode(nu) {
   if (document.getElementById('plannedBox').style.display === 'none') return;
-  const el = currentElements();
-  if (el.e >= 1 || el.a <= 0) return;
+  const chain = planChain();
+  const base = chain.orbits[chain.orbits.length - 1];
+  if (base.e >= 1 || base.a <= 0) return;
   app.placingNode = false;
-  app.node = { nu, dv: +document.getElementById('nodeDv').value || 0 };
-  if (!app.paused) { app.paused = true; syncPauseUI(); }
-  updateNodeUI();
+  addPlanNode(nu);
 }
 document.getElementById('btnSnapPeri').addEventListener('click', () => snapNode(0));
 document.getElementById('btnSnapApo').addEventListener('click', () => snapNode(Math.PI));
@@ -1233,6 +1662,14 @@ document.getElementById('presetLeo').addEventListener('click', () => { setOrbitC
 document.getElementById('presetOval').addEventListener('click', () => { setOrbitEllipse(300, 1200); app.scale = null; });
 document.getElementById('presetHigh').addEventListener('click', () => { setOrbitCircular(2000); app.scale = null; });
 
+document.querySelectorAll('input[name=moonScale]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    app.moonScale = e.target.value;
+    restartCurrent();
+  });
+});
+document.getElementById('moonOn').addEventListener('change', () => restartCurrent());
+
 function setMode(mode) {
   app.mode = mode;
   document.getElementById('tabLessons').classList.toggle('active', mode === 'lessons');
@@ -1240,7 +1677,13 @@ function setMode(mode) {
   app.gameOver = false; app.thrustSign = 0;
   hideOverlay();
   if (mode === 'lessons') loadLesson(app.lessonIdx);
-  else { setOrbitCircular(500); app.scale = null; applyControlPolicy(); }
+  else {
+    document.getElementById('moonOn').checked = true;
+    app.moonEnabled = true;
+    setOrbitCircular(500);
+    app.scale = null; app.camCenter = [0, 0];
+    applyControlPolicy();
+  }
 }
 document.getElementById('tabLessons').addEventListener('click', () => setMode('lessons'));
 document.getElementById('tabSandbox').addEventListener('click', () => setMode('sandbox'));
@@ -1259,10 +1702,17 @@ function physicsSelfCheck() {
     const perErr = Math.hypot(sP.r[0] - sE.r[0], sP.r[1] - sE.r[1]);
     const elH = elementsFromState({ r: [r1, 0], v: [0, vc + H_300_1000.dv1] });
     const apoErr = Math.abs(elH.a * (1 + elH.e) - (R_EARTH + 1000));
-    const ok = rtErr < 1e-6 && perErr < 1e-3 && apoErr < 1;
+    // hyperbolic: propagate a lunar flyby to perilune analytically
+    const rp = R_MOON + 150, vinf = 0.8;
+    const ah = -MU_MOON / (vinf * vinf), eh = 1 + rp * vinf * vinf / MU_MOON;
+    const elh = { a: ah, e: eh, omega: 0, nu: normAngle(-1.2), dir: 1 };
+    const th = timeToNu(elh, 0, MU_MOON);
+    const elh2 = propagateKepler(elh, th, MU_MOON);
+    const hypErr = Math.abs(signedNu(elh2.nu));
+    const ok = rtErr < 1e-6 && perErr < 1e-3 && apoErr < 1 && hypErr < 1e-6;
     badge.textContent = ok ? ' physics ✓' : ' physics ✗';
     badge.className = ok ? 'ok' : 'fail';
-    if (!ok) console.error('physics self-check failed', { rtErr, perErr, apoErr });
+    if (!ok) console.error('physics self-check failed', { rtErr, perErr, apoErr, hypErr });
   } catch (err) {
     badge.textContent = ' physics ✗'; badge.className = 'fail';
     console.error('physics self-check crashed', err);
@@ -1270,13 +1720,13 @@ function physicsSelfCheck() {
 }
 
 resize();
-// iOS lays out late after opening from Files/Messages — re-measure a few times
 requestAnimationFrame(() => requestAnimationFrame(resize));
 setTimeout(resize, 100);
 setTimeout(resize, 400);
 physicsSelfCheck();
 loadLesson(0);
 syncWarpUI();
+syncSteerUI();
 requestAnimationFrame(frame);
 </script>
 </body>

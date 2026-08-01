@@ -12,17 +12,25 @@ The most important (and most counterintuitive) idea in orbital mechanics:
 
 ## How to use it
 
-- **Lessons tab** — five short guided lessons, in order:
+- **Lessons tab** — eight short guided lessons, in order:
   1. *What is an orbit?* — orbiting is falling sideways forever
   2. *Raise the far side* — a prograde burn raises the opposite side
   3. *Where you burn matters* — same burn, different spot, different orbit
   4. *The two-burn transfer* — the Hohmann transfer: two burns to move both sides
   5. *Coming home* — slow down here, re-enter over there
-- **Sandbox tab** — free play, no goals, reset any time.
+  6. *Steering the burn* — sideways thrust rotates the orbit; prograde grows it
+  7. *Lead the Moon* — aim where the Moon WILL be (transfer windows)
+  8. *Lunar orbit insertion* — arrive on a flyby, brake at closest approach, get captured
+- **Sandbox tab** — free play with the Moon, presets, no goals, reset any time.
 - **Live burns** — hold ▲ Prograde / ▼ Retrograde (or the ↑/↓ arrow keys) and watch
-  the orbit deform in real time.
-- **Planned burns** — place a maneuver point on the orbit, dial in a burn, preview the
-  dashed result, then execute — like real mission control.
+  the orbit deform in real time; the *Steer* slider tilts the engine up to ±90°.
+- **Flight plan** — chain multiple maneuver points (each with its own burn strength
+  AND direction), preview the whole mission as dashed orbits, then execute it —
+  like real mission control.
+- **The Moon** — orbits Earth with its real gravity; cross the dashed *sphere of
+  influence* and the sim hands you over to Moon-centered orbit (patched conics, the
+  same model mission planners teach). Toggle between the real 384,400 km distance
+  and a closer "classroom" Moon that fits on one screen.
 - Hover any dotted-underlined term for a plain-English explanation.
 
 ## iPhone / iPad
