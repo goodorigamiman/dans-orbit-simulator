@@ -22,9 +22,11 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
+    height: 100dvh;   /* iOS Safari: real viewport, not URL-bar-inflated 100% */
     background: var(--bg); color: var(--text);
     font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     display: flex; flex-direction: column; overflow: hidden;
+    -webkit-text-size-adjust: 100%;
   }
   header {
     display: flex; align-items: center; gap: 16px;
@@ -40,8 +42,13 @@
   }
   .tabs button.active { color: var(--text); border-color: var(--accent); background: #16305a; }
   #wrap { flex: 1 1 auto; display: flex; min-height: 0; }
-  #canvasBox { flex: 1 1 auto; position: relative; min-width: 0; }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #canvasBox { flex: 1 1 auto; position: relative; min-width: 0; min-height: 220px; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #bootWarn {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    text-align: center; padding: 24px; color: var(--danger); font-size: 14px; z-index: 25;
+    background: rgba(5,8,18,.85);
+  }
   #banner {
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
     background: rgba(19,26,46,.9); border: 1px solid var(--line); border-radius: 8px;
@@ -106,10 +113,24 @@
   #overlay .btns { display: flex; gap: 8px; margin-top: 14px; }
   footer { padding: 5px 14px; font-size: 11.5px; color: var(--dim); background: var(--panel); border-top: 1px solid var(--line); flex: 0 0 auto; }
   #canvasBox.placing { cursor: crosshair; }
-  @media (max-width: 700px) {
-    #wrap { flex-direction: column; overflow-y: auto; }
-    #canvasBox { flex: 0 0 52vh; }
-    #sidebar { flex: 1 1 auto; border-left: none; border-top: 1px solid var(--line); overflow-y: visible; }
+  button:focus-visible, input:focus-visible, .tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tip:focus::after {
+    content: attr(data-tip); position: absolute; left: 0; bottom: 130%;
+    background: #0e1428; color: var(--text); border: 1px solid var(--accent);
+    padding: 8px 10px; border-radius: 8px; width: 230px; font-size: 12px; line-height: 1.4;
+    z-index: 30; pointer-events: none;
+  }
+  #physBadge { margin-left: 10px; }
+  #physBadge.ok { color: var(--peri); }
+  #physBadge.fail { color: var(--danger); }
+  @media (max-width: 860px) {
+    #wrap { flex-direction: column; }
+    #canvasBox { flex: 1 1 55%; min-height: 48vh; min-height: 48dvh; }
+    #sidebar {
+      flex: 0 0 auto; width: 100%; max-height: 42vh; max-height: 42dvh;
+      border-left: none; border-top: 1px solid var(--line);
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+    }
     footer { display: none; }
   }
 </style>
@@ -125,7 +146,15 @@
 
 <div id="wrap">
   <div id="canvasBox">
+    <noscript>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:#ff6b81;font-size:15px">
+        This simulator needs JavaScript to run.<br><br>
+        On an iPhone/iPad, the Files or Messages preview does not run apps —
+        open this instead in Safari:<br><b>goodorigamiman.github.io/dans-orbit-simulator</b>
+      </div>
+    </noscript>
     <canvas id="cv"></canvas>
+    <div id="bootWarn"></div>
     <div id="banner"></div>
     <div id="overlay"><div class="box" id="overlayBox">
       <h3 id="ovTitle"></h3>
@@ -139,6 +168,7 @@
       <h2 id="lessonHeader">Lesson</h2>
       <div id="lessonTitle"></div>
       <div id="lessonGoal"></div>
+      <div id="coach" style="display:none;margin-top:8px;font-size:13px;color:var(--target)"></div>
       <div id="lessonNav">
         <button class="ctl" id="btnPrev">← Prev</button>
         <button class="ctl" id="btnRestart">Restart</button>
@@ -180,9 +210,13 @@
       <h2>Plan a burn — <span class="tip" data-tip="Real mission controllers don't 'fly by hand' — they plan a burn at an exact point on the orbit, check the predicted result, then execute. This is how you do a clean two-burn transfer.">maneuver point</span></h2>
       <div class="hint" id="planHint">Click the button, then click a spot on your orbit.</div>
       <button class="ctl primary" id="btnPlan">＋ Place a maneuver point</button>
+      <div class="row" style="margin-top:8px">
+        <button class="ctl" id="btnSnapPeri" title="Snap the maneuver point to the low point (key P)">@ Low point</button>
+        <button class="ctl" id="btnSnapApo" title="Snap the maneuver point to the high point (key A)">@ High point</button>
+      </div>
       <div id="nodeControls" style="display:none; margin-top:10px">
         <div class="slider-label"><span>Burn strength</span><b id="nodeDvVal">0 m/s</b></div>
-        <input type="range" id="nodeDv" min="-400" max="400" step="5" value="0">
+        <input type="range" id="nodeDv" min="-500" max="500" step="1" value="0">
         <div class="slider-label"><span>◀ slow down</span><span>speed up ▶</span></div>
         <div id="nodePreview"></div>
         <div class="row" style="margin-top:8px">
@@ -195,11 +229,17 @@
     <div class="card" id="sandboxBox" style="display:none">
       <h2>Sandbox</h2>
       <div class="hint" style="font-size:12.5px;color:var(--dim)">Free play — no goals. Try anything!</div>
+      <div class="row" style="margin-top:8px">
+        <button class="ctl" id="presetLeo" title="Circular 400 km — ISS territory">LEO 400</button>
+        <button class="ctl" id="presetOval" title="Elliptical 300 × 1,200 km">Oval</button>
+        <button class="ctl" id="presetHigh" title="Circular 2,000 km">High 2000</button>
+      </div>
       <button class="ctl" id="btnReset" style="margin-top:8px">↺ Reset orbit</button>
+      <div class="hint" style="font-size:11.5px;color:var(--dim);margin-top:8px">Keys: ↑/↓ burn · [ ] time warp · Space pause · P/A snap node low/high · X clear node · R reset</div>
     </div>
   </div>
 </div>
-<footer>A training aid for the most important idea in orbital mechanics: <b>where and when you fire your engines decides where your orbit changes — and the change shows up on the opposite side.</b></footer>
+<footer>A training aid for the most important idea in orbital mechanics: <b>where and when you fire your engines decides where your orbit changes — and the change shows up on the opposite side.</b><span id="physBadge"></span></footer>
 
 <script>
 'use strict';
@@ -243,7 +283,7 @@ function elementsFromState(s) {
 function stateFromElements(el) {
   const { a, e, omega, nu, dir } = el;
   const p = a * (1 - e * e);
-  const habs = Math.sqrt(MU * p);
+  const habs = Math.sqrt(Math.abs(MU * p));
   const rm = p / (1 + e * Math.cos(nu));
   const theta = omega + dir * nu;
   const cosT = Math.cos(theta), sinT = Math.sin(theta);
@@ -348,18 +388,38 @@ const app = {
   simTime: 0,
 };
 
-function setOrbitCircular(altKm, startAngle) {
-  const r = R_EARTH + altKm;
-  const th = startAngle || 0;
-  const vc = Math.sqrt(MU / r);
-  const state = { r: [r * Math.cos(th), r * Math.sin(th)],
-                  v: [-vc * Math.sin(th), vc * Math.cos(th)] };
+function setOrbitState(state) {
   app.el = elementsFromState(state);
   app.state = state;
   app.coasting = true;
   app.trail = [];
+  app.dvSpent = 0;
   app.node = null; app.placingNode = false; app.execNode = false;
   updateNodeUI();
+}
+
+function setOrbitCircular(altKm, startAngle) {
+  const r = R_EARTH + altKm;
+  const th = startAngle || 0;
+  const vc = Math.sqrt(MU / r);
+  setOrbitState({ r: [r * Math.cos(th), r * Math.sin(th)],
+                  v: [-vc * Math.sin(th), vc * Math.cos(th)] });
+}
+
+function setOrbitEllipse(periAltKm, apoAltKm) {
+  // start the ship at periapsis, on the +x axis
+  const rp = R_EARTH + periAltKm, ra = R_EARTH + apoAltKm;
+  const a = (rp + ra) / 2;
+  const vp = Math.sqrt(MU * (2 / rp - 1 / a));
+  setOrbitState({ r: [rp, 0], v: [0, vp] });
+}
+
+function hohmannDv(r1, r2) {
+  const v1 = Math.sqrt(MU / r1), v2 = Math.sqrt(MU / r2);
+  return {
+    dv1: v1 * (Math.sqrt(2 * r2 / (r1 + r2)) - 1),
+    dv2: v2 * (1 - Math.sqrt(2 * r1 / (r1 + r2))),
+  };
 }
 
 function currentState() {
@@ -370,6 +430,7 @@ function currentElements() {
 }
 
 /* ============================== lessons ============================== */
+const H_300_1000 = hohmannDv(R_EARTH + 300, R_EARTH + 1000);   // textbook: ~190 + ~186 m/s
 const LESSONS = [
   {
     title: '1 · What is an orbit?',
@@ -429,9 +490,11 @@ const LESSONS = [
       (the dashed <b style="color:var(--target)">gold circle</b> at 1,000 km).<br><br>
       One burn can't do it! A single burn only raises the <em>opposite</em> side —
       leaving your low point behind. You need <em>two</em>:<br>
-      <b>Burn 1:</b> fire prograde to raise your high point up to the gold circle.<br>
-      <b>Burn 2:</b> coast to that new high point, then fire prograde <em>again</em> to
-      raise the low side and make the orbit round.<br><br>
+      <b>Burn 1:</b> fire prograde (~${Math.round(H_300_1000.dv1 * 1000)} m/s) to raise
+      your high point up to the gold circle.<br>
+      <b>Burn 2:</b> coast to that new high point, then fire prograde <em>again</em>
+      (~${Math.round(H_300_1000.dv2 * 1000)} m/s) to raise the low side and make the
+      orbit round.<br><br>
       Try the <em>maneuver point</em> planner — it shows you the result before you
       commit. <b>Goal:</b> both high and low points within <b>±25 km</b> of 1,000 km.`,
     init: () => setOrbitCircular(300),
@@ -475,26 +538,45 @@ const ctx = cv.getContext('2d');
 let CW = 0, CH = 0, DPR = 1;
 
 function resize() {
-  DPR = window.devicePixelRatio || 1;
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);   // cap for tablet GPU fill-rate
   const box = document.getElementById('canvasBox');
-  CW = box.clientWidth; CH = box.clientHeight;
-  cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR);
+  const rect = box.getBoundingClientRect();
+  CW = rect.width; CH = rect.height;
+  if (CW < 16 || CH < 16) {
+    // iOS first-paint sometimes reports 0-height flex children — force a floor and retry
+    box.style.minHeight = '48vh';
+    const r2 = box.getBoundingClientRect();
+    CW = r2.width || window.innerWidth; CH = r2.height || Math.round(window.innerHeight * 0.5);
+  }
+  cv.width = Math.max(1, Math.round(CW * DPR));
+  cv.height = Math.max(1, Math.round(CH * DPR));
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const warn = document.getElementById('bootWarn');
+  if (CW < 16 || CH < 16) {
+    warn.style.display = 'flex';
+    warn.textContent = `The orbit view could not get any screen space (canvas ${Math.round(CW)}×${Math.round(CH)}). ` +
+      `If you're on an iPhone/iPad, open this page in Safari — or use goodorigamiman.github.io/dans-orbit-simulator`;
+  } else warn.style.display = 'none';
 }
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+window.addEventListener('pageshow', resize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 
 function fitRadius() {
-  // largest world radius we need on screen
-  let rmax = vmag(currentState().r) * 1.1;
+  // Fit to the ORBIT ENVELOPE (apoapsis), never the craft's current radius —
+  // tracking the craft makes the zoom breathe once per rev on elliptical orbits.
+  let rmax = R_EARTH * 1.3;
   const el = currentElements();
-  if (el.e < 1 && el.a > 0) rmax = Math.max(rmax, el.a * (1 + el.e));
+  if (el.e < 1 && el.a > 0) rmax = Math.max(rmax, el.a * (1 + el.e) * 1.05);
+  else rmax = Math.max(rmax, vmag(currentState().r) * 1.15);   // unbound: follow the departure
   const lesson = activeLesson();
-  if (lesson && lesson.target) rmax = Math.max(rmax, R_EARTH + lesson.target.altKm);
+  if (lesson && lesson.target) rmax = Math.max(rmax, (R_EARTH + lesson.target.altKm) * 1.05);
   if (app.node) {
     const pv = nodePreviewElements();
-    if (pv && pv.e < 1 && pv.a > 0) rmax = Math.max(rmax, pv.a * (1 + pv.e));
+    if (pv && pv.e < 1 && pv.a > 0) rmax = Math.max(rmax, pv.a * (1 + pv.e) * 1.05);
   }
-  return Math.max(rmax, R_EARTH * 1.3);
+  return Math.min(rmax, ESCAPE_R * 1.3);   // zoom clamp
 }
 
 function w2s(p, scale) { return [CW / 2 + p[0] * scale, CH / 2 - p[1] * scale]; }
@@ -574,12 +656,14 @@ function render() {
     }), sc, 'rgba(255,184,77,0.85)', true, 1.4);
   }
 
-  // lesson-3 markers
+  // lesson-3 markers — fixed INERTIAL angles (fixed places above Earth),
+  // drawn where the CURRENT ORBIT crosses that direction so they sit on the path.
+  // (True-anomaly markers would teleport when a burn rebases periapsis.)
   if (app.mode === 'lessons' && lesson && lesson.markers && !app.lessonDone) {
     const mIdx = app.lessonStage;
     lesson.markers.forEach((ang, i) => {
-      const rr = vmag(currentState().r);
-      const pos = [Math.cos(ang) * rr, Math.sin(ang) * rr];
+      const nuAtAngle = normAngle(el.dir * (ang - el.omega));
+      const pos = stateFromElements({ ...el, nu: nuAtAngle }).r;
       const active = i === mIdx;
       const pulse = active ? (0.6 + 0.4 * Math.sin(performance.now() / 250)) : 0.35;
       const [x, y] = w2s(pos, sc);
@@ -593,6 +677,18 @@ function render() {
 
   // current orbit + apsides
   drawOrbitPath(el, sc, 'rgba(93,212,255,0.9)', false, 1.8);
+
+  // opposite-side ghost — THE teaching cue: while burning, show where the orbit changes
+  if (app.thrustSign !== 0 && !app.paused && !app.gameOver && el.e < 1 && el.a > 0) {
+    const opp = stateFromElements({ ...el, nu: normAngle(el.nu + Math.PI) }).r;
+    const [ox, oy] = w2s(opp, sc);
+    const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 180);
+    ctx.beginPath(); ctx.arc(ox, oy, 10 + 3 * pulse, 0, TWO_PI);
+    ctx.strokeStyle = `rgba(255,184,77,${pulse})`; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = 'bold 12px -apple-system, sans-serif';
+    ctx.fillStyle = `rgba(255,184,77,${Math.max(pulse, 0.6)})`;
+    ctx.fillText(app.thrustSign > 0 ? 'changes here ↑' : 'changes here ↓', ox + 16, oy + 4);
+  }
   if (el.e > 1e-4 && el.e < 1 && el.a > 0) {
     const apoP = stateFromElements({ ...el, nu: Math.PI }).r;
     const periP = stateFromElements({ ...el, nu: 0 }).r;
@@ -639,14 +735,37 @@ function render() {
   ctx.moveTo(7, 0); ctx.lineTo(-5, 4.5); ctx.lineTo(-3, 0); ctx.lineTo(-5, -4.5);
   ctx.closePath(); ctx.fillStyle = '#ffffff'; ctx.fill();
   ctx.restore();
+
+  // scale bar (bottom-left): nearest 1/2/5×10ⁿ km that fits ~22% of the width
+  const targetKm = CW * 0.22 / sc;
+  const pow = Math.pow(10, Math.floor(Math.log10(targetKm)));
+  const niceKm = [5, 2, 1].map(m => m * pow).find(v => v <= targetKm) || pow;
+  const barPx = niceKm * sc;
+  ctx.strokeStyle = 'rgba(143,160,196,0.8)'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(16, CH - 18); ctx.lineTo(16 + barPx, CH - 18);
+  ctx.moveTo(16, CH - 23); ctx.lineTo(16, CH - 13);
+  ctx.moveTo(16 + barPx, CH - 23); ctx.lineTo(16 + barPx, CH - 13);
+  ctx.stroke();
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(143,160,196,0.9)';
+  ctx.fillText(niceKm.toLocaleString() + ' km', 16, CH - 27);
 }
 
 let stars = null;
 function drawStars() {
   if (!stars || stars.w !== CW || stars.h !== CH) {
+    // seeded PRNG so the starfield is stable across resizes (no reshuffle flicker)
+    let seed = 0x9e3779b9;
+    const rnd = () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
     stars = { w: CW, h: CH, pts: [] };
     for (let i = 0; i < 140; i++) {
-      stars.pts.push([Math.random() * CW, Math.random() * CH, Math.random() * 1.3 + 0.3, Math.random() * 0.5 + 0.2]);
+      stars.pts.push([rnd() * CW, rnd() * CH, rnd() * 1.3 + 0.3, rnd() * 0.5 + 0.2]);
     }
   }
   for (const [x, y, r, a] of stars.pts) {
@@ -749,6 +868,11 @@ function step(realDt) {
   let simDt = realDt * warp;
   app.simTime += simDt;
 
+  if (thrusting && app.execNode) {
+    // hand-flying overrides a planned execute — cancel it cleanly (node stays placed)
+    app.execNode = false;
+    if (app.savedWarpIdx != null) { app.warpIdx = app.savedWarpIdx; app.savedWarpIdx = null; syncWarpUI(); }
+  }
   if (thrusting) {
     if (app.coasting) { app.state = stateFromElements(app.el); app.coasting = false; }
     const sign = app.thrustSign;
@@ -869,12 +993,22 @@ function activeLesson() { return app.mode === 'lessons' ? LESSONS[app.lessonIdx]
 function trackStageDv(dvMs) {
   const lesson = activeLesson();
   if (!lesson || !lesson.staged || app.lessonDone) return;
-  const marker = lesson.markers[app.lessonStage];
+  const markerAng = lesson.markers[app.lessonStage];
+  // score by INERTIAL position angle — the marker is a fixed place above Earth
   const s = currentState();
-  const shipAng = Math.atan2(s.r[1], s.r[0]);
-  let d = Math.abs(normAngle(shipAng - marker));
+  let d = Math.abs(normAngle(Math.atan2(s.r[1], s.r[0]) - markerAng));
   if (d > Math.PI) d = TWO_PI - d;
   if (d < Math.PI / 7) app.stageDv += dvMs;   // within ~25°
+}
+
+function updateCoach() {
+  const lesson = activeLesson();
+  const coach = document.getElementById('coach');
+  if (lesson && lesson.staged && !app.lessonDone) {
+    coach.style.display = 'block';
+    const label = app.lessonStage === 0 ? 'Ⓐ' : 'Ⓑ';
+    coach.textContent = `Burned near ${label}: ${Math.min(40, Math.round(app.stageDv))} / 40 m/s`;
+  } else coach.style.display = 'none';
 }
 
 function checkLesson() {
@@ -992,6 +1126,7 @@ function updateReadouts() {
     document.getElementById('roPeriod').textContent = '–';
   }
   document.getElementById('roDv').textContent = Math.round(app.dvSpent) + ' m/s';
+  updateCoach();
 }
 
 function syncWarpUI() {
@@ -1012,12 +1147,21 @@ document.getElementById('btnPause').addEventListener('click', () => {
 
 function bindHold(id, sign) {
   const b = document.getElementById(id);
-  const on = (ev) => { ev.preventDefault(); if (!b.disabled) { app.thrustSign = sign; b.classList.add('firing'); } };
-  const off = () => { if (app.thrustSign === sign) app.thrustSign = 0; b.classList.remove('firing'); };
+  const on = (ev) => {
+    ev.preventDefault();
+    if (b.disabled || app.gameOver) return;
+    try { if (ev.pointerId != null) b.setPointerCapture(ev.pointerId); } catch (_) {}
+    app.thrustSign = sign; b.classList.add('firing');
+  };
+  const off = (ev) => {
+    if (app.thrustSign === sign) app.thrustSign = 0;
+    b.classList.remove('firing');
+    try { if (ev.pointerId != null) b.releasePointerCapture(ev.pointerId); } catch (_) {}
+  };
   b.addEventListener('pointerdown', on);
   b.addEventListener('pointerup', off);
-  b.addEventListener('pointerleave', off);
   b.addEventListener('pointercancel', off);
+  // no pointerleave cancel — capture keeps the burn while the finger drifts off the button
 }
 bindHold('btnPro', 1);
 bindHold('btnRetro', -1);
@@ -1027,6 +1171,12 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowUp' && !document.getElementById('btnPro').disabled) { app.thrustSign = 1; document.getElementById('btnPro').classList.add('firing'); e.preventDefault(); }
   if (e.key === 'ArrowDown' && !document.getElementById('btnRetro').disabled) { app.thrustSign = -1; document.getElementById('btnRetro').classList.add('firing'); e.preventDefault(); }
   if (e.key === ' ') { document.getElementById('btnPause').click(); e.preventDefault(); }
+  if (e.key === '[') { app.warpIdx = Math.max(0, app.warpIdx - 1); syncWarpUI(); }
+  if (e.key === ']') { app.warpIdx = Math.min(WARPS.length - 1, app.warpIdx + 1); syncWarpUI(); }
+  if (e.key === 'r' || e.key === 'R') { if (!app.gameOver && document.getElementById('overlay').style.display !== 'flex') restartCurrent(); }
+  if (e.key === 'x' || e.key === 'X') { app.node = null; app.execNode = false; updateNodeUI(); }
+  if (e.key === 'p' || e.key === 'P') snapNode(0);
+  if (e.key === 'a' || e.key === 'A') snapNode(Math.PI);
 });
 window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowUp' && app.thrustSign === 1) { app.thrustSign = 0; document.getElementById('btnPro').classList.remove('firing'); }
@@ -1063,10 +1213,25 @@ document.getElementById('btnClearNode').addEventListener('click', () => {
   app.node = null; app.execNode = false; updateNodeUI();
 });
 
+function snapNode(nu) {
+  if (document.getElementById('plannedBox').style.display === 'none') return;
+  const el = currentElements();
+  if (el.e >= 1 || el.a <= 0) return;
+  app.placingNode = false;
+  app.node = { nu, dv: +document.getElementById('nodeDv').value || 0 };
+  if (!app.paused) { app.paused = true; syncPauseUI(); }
+  updateNodeUI();
+}
+document.getElementById('btnSnapPeri').addEventListener('click', () => snapNode(0));
+document.getElementById('btnSnapApo').addEventListener('click', () => snapNode(Math.PI));
+
 document.getElementById('btnPrev').addEventListener('click', () => loadLesson(app.lessonIdx - 1));
 document.getElementById('btnNext').addEventListener('click', () => loadLesson(app.lessonIdx + 1));
 document.getElementById('btnRestart').addEventListener('click', () => restartCurrent());
 document.getElementById('btnReset').addEventListener('click', () => restartCurrent());
+document.getElementById('presetLeo').addEventListener('click', () => { setOrbitCircular(400); app.scale = null; });
+document.getElementById('presetOval').addEventListener('click', () => { setOrbitEllipse(300, 1200); app.scale = null; });
+document.getElementById('presetHigh').addEventListener('click', () => { setOrbitCircular(2000); app.scale = null; });
 
 function setMode(mode) {
   app.mode = mode;
@@ -1081,7 +1246,35 @@ document.getElementById('tabLessons').addEventListener('click', () => setMode('l
 document.getElementById('tabSandbox').addEventListener('click', () => setMode('sandbox'));
 
 /* ============================== boot ============================== */
+function physicsSelfCheck() {
+  const badge = document.getElementById('physBadge');
+  try {
+    const r1 = R_EARTH + 300, vc = Math.sqrt(MU / r1);
+    const s0 = { r: [r1, 0], v: [0, vc] };
+    const s1 = stateFromElements(elementsFromState(s0));
+    const rtErr = Math.hypot(s1.r[0] - s0.r[0], s1.r[1] - s0.r[1]);
+    const sE = { r: [R_EARTH + 400, 0], v: [0.9, 8.2] };
+    const elE = elementsFromState(sE);
+    const sP = stateFromElements(propagateKepler(elE, orbitalPeriod(elE.a)));
+    const perErr = Math.hypot(sP.r[0] - sE.r[0], sP.r[1] - sE.r[1]);
+    const elH = elementsFromState({ r: [r1, 0], v: [0, vc + H_300_1000.dv1] });
+    const apoErr = Math.abs(elH.a * (1 + elH.e) - (R_EARTH + 1000));
+    const ok = rtErr < 1e-6 && perErr < 1e-3 && apoErr < 1;
+    badge.textContent = ok ? ' physics ✓' : ' physics ✗';
+    badge.className = ok ? 'ok' : 'fail';
+    if (!ok) console.error('physics self-check failed', { rtErr, perErr, apoErr });
+  } catch (err) {
+    badge.textContent = ' physics ✗'; badge.className = 'fail';
+    console.error('physics self-check crashed', err);
+  }
+}
+
 resize();
+// iOS lays out late after opening from Files/Messages — re-measure a few times
+requestAnimationFrame(() => requestAnimationFrame(resize));
+setTimeout(resize, 100);
+setTimeout(resize, 400);
+physicsSelfCheck();
 loadLesson(0);
 syncWarpUI();
 requestAnimationFrame(frame);

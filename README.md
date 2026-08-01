@@ -25,6 +25,18 @@ The most important (and most counterintuitive) idea in orbital mechanics:
   dashed result, then execute — like real mission control.
 - Hover any dotted-underlined term for a plain-English explanation.
 
+## iPhone / iPad
+
+Opening the raw HTML file from Messages, Mail, or the Files app shows Apple's
+QuickLook preview, which does **not** run apps — the screen stays empty. On an iPad:
+
+1. **Easiest:** open the hosted version in Safari —
+   **https://goodorigamiman.github.io/dans-orbit-simulator/** — and optionally
+   Share → *Add to Home Screen* for an app-style icon.
+2. Landscape orientation works best. **Hold** the burn buttons (don't just tap).
+3. Offline alternative: serve the folder from a computer on the same Wi-Fi
+   (`python3 -m http.server 8080`) and open `http://<computer-ip>:8080/orbit-simulator.html`.
+
 ## Notes
 
 - Real Earth physics (analytic Kepler propagation while coasting, RK4 during burns);
