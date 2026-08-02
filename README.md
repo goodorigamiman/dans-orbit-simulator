@@ -39,6 +39,15 @@ The most important (and most counterintuitive) idea in orbital mechanics:
   Earth–Moon system, and *Auto zoom* hands the camera back.
 - Hover any dotted-underlined term for a plain-English explanation.
 
+## Printable workbook
+
+[`orbit-workbook.pdf`](orbit-workbook.pdf) is a 14-page companion workbook written at
+a 5th-grade-or-below level — print it and work through it alongside the simulator.
+It follows the same 9 lessons (Big Idea → try it in the sim → paper puzzles), with an
+astronaut word list, drawing activities, a final quiz, a certificate, and an answer
+key. The simulator is the teaching aid; the workbook cements the concepts on paper.
+(Regenerate it with `dev/make_workbook.py` — requires `pip install reportlab`.)
+
 ## iPhone / iPad
 
 Opening the raw HTML file from Messages, Mail, or the Files app shows Apple's
